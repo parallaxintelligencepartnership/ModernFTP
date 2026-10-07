@@ -403,8 +403,9 @@ internal sealed partial class FtpSession
         _renameSource = _renameFrom;
         _renameFrom = null;
 
-        // A REST offset belongs to the next command only, and only RETR, STOR and APPE use it.
-        if (verb is not ("RETR" or "STOR" or "APPE"))
+        // A REST offset survives the transfer setup commands (clients send REST before or after PASV) and any
+        // other command clears it; only RETR, STOR and APPE use it.
+        if (verb is not ("RETR" or "STOR" or "APPE" or "PASV" or "EPSV" or "PORT" or "EPRT" or "TYPE" or "PBSZ" or "PROT"))
         {
             _restartOffset = 0;
         }

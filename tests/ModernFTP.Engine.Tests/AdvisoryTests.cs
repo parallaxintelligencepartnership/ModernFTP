@@ -47,6 +47,21 @@ public class AdvisoryTests
         Assert.Equal(226, (await client.ReadReplyAsync()).Code);
     }
 
+    [Fact]
+    public async Task RestBeforePasvStillAppliesToTheRetr()
+    {
+        await using var server = await TestServer.StartAsync(FtpPermissions.All);
+        await File.WriteAllTextAsync(Path.Combine(server.Home, "r.txt"), "0123456789");
+        await using var client = await server.ConnectAsync();
+        Assert.Equal(350, (await client.SendAsync("REST 4")).Code);
+        Assert.Equal(200, (await client.SendAsync("TYPE I")).Code);
+        using var data = await client.OpenPassiveAsync();
+        Assert.Equal(150, (await client.SendAsync("RETR r.txt")).Code);
+        using var reader = new StreamReader(data.GetStream());
+        Assert.Equal("456789", await reader.ReadToEndAsync());
+        Assert.Equal(226, (await client.ReadReplyAsync()).Code);
+    }
+
     // ---- P0 A8: PASS timing and failed login throttle -----------------------------------------
 
     [Fact]

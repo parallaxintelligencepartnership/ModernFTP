@@ -39,7 +39,7 @@ The config is a `config.json` file.
 | Portable zip (a file named `portable` beside the exe) | Beside the exe |
 | Windows service | `%ProgramData%\ModernFTP\config.json` |
 
-The app starts with defaults and writes the file the first time you save Setup. Open Setup to set the port, passive port range and limits, and Users to add accounts. Anonymous access is off by default.
+The app starts with defaults and writes the file the first time you save Setup. Open Setup to set the port, passive port range and limits, and Users to add accounts. Anonymous access is off by default. The app rewrites the config file when you save, and comments in it are not kept.
 
 To make any other zip portable, create an empty file named `portable` next to the exe.
 
@@ -89,6 +89,8 @@ Add `--force` to overwrite an existing config. Passwords are not migrated, becau
 ## FTPS
 
 FTPS (explicit TLS, `AUTH TLS`) is on by default. With no certificate configured, ModernFTP generates a self signed one in the config folder, and clients will ask you to trust it. To use your own certificate, set `tls.certificatePath` (a PFX file) and `tls.certificatePassword` in `config.json`. Set `tls.enabled` to false to turn FTPS off.
+
+A user entry named `anonymous` is the anonymous account's configuration (home folder and rights); it only takes effect when `allowAnonymous` is true.
 
 ## Building from source
 

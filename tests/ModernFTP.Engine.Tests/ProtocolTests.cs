@@ -65,8 +65,8 @@ public class ProtocolTests
         await using var server = await TestServer.StartAsync();
         await File.WriteAllTextAsync(Path.Combine(server.Home, "f.txt"), "0123456789");
         await using var client = await server.ConnectAsync();
-        using var data = await client.OpenPassiveAsync();
         Assert.Equal(350, (await client.SendAsync("REST 4")).Code);
+        using var data = await client.OpenPassiveAsync();
         Assert.Equal(150, (await client.SendAsync("RETR f.txt")).Code);
         using var reader = new StreamReader(data.GetStream());
         Assert.Equal("456789", await reader.ReadToEndAsync());
