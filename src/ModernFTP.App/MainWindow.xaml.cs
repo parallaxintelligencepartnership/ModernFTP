@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
 using System.Net;
 using System.Windows;
 using System.Windows.Controls;
@@ -207,11 +208,17 @@ public partial class MainWindow : Window
 
     private void OnSetup(object sender, RoutedEventArgs e)
     {
+        try
+        {
+            new SetupWindow(_host.LoadConfig(), AppSettings.Load(), _host.ConfigPath) { Owner = this }.ShowDialog();
+        }
+        catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException)
+        {
+            MessageBox.Show(this, ex.Message, Strings.SetupSaveFailedTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
-    private void OnAbout(object sender, RoutedEventArgs e)
-    {
-    }
+    private void OnAbout(object sender, RoutedEventArgs e) => new AboutWindow { Owner = this }.ShowDialog();
 
     private void OnMinimizeToTray(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
