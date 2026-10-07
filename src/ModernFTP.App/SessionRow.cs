@@ -4,14 +4,14 @@ using System.Runtime.CompilerServices;
 
 namespace ModernFTP.App;
 
-/// <summary>One row of the Users page. Built from engine events because the engine offers no session enumeration.</summary>
+/// <summary>One row of the Users page, filled from an engine session snapshot.</summary>
 public sealed class SessionRow : INotifyPropertyChanged
 {
     private string _user = "-";
     private string _transfer = string.Empty;
     private double _progress;
+    private bool _isIndeterminate;
     private string _timeLeft = string.Empty;
-    private DateTimeOffset _lastActivity = DateTimeOffset.Now;
     private string _idle = "00:00:00";
 
     public SessionRow(long id, string ip)
@@ -28,36 +28,30 @@ public sealed class SessionRow : INotifyPropertyChanged
 
     public string User { get => _user; set => Set(ref _user, value); }
 
+    /// <summary>File name of the running transfer; empty when none.</summary>
     public string Transfer { get => _transfer; set => Set(ref _transfer, value); }
 
+    /// <summary>Percent done, 0 to 100.</summary>
     public double Progress { get => _progress; set => Set(ref _progress, value); }
+
+    /// <summary>True while a transfer runs whose total size is unknown (uploads).</summary>
+    public bool IsIndeterminate { get => _isIndeterminate; set => Set(ref _isIndeterminate, value); }
 
     public string TimeLeft { get => _timeLeft; set => Set(ref _timeLeft, value); }
 
-    public string Idle { get => _idle; private set => Set(ref _idle, value); }
-
-    public DateTimeOffset LastActivity => _lastActivity;
+    public string Idle { get => _idle; set => Set(ref _idle, value); }
 
     public bool HasTransfer => _transfer.Length > 0;
 
-    public void Touch(DateTimeOffset now)
+    public static string FormatSpan(TimeSpan span)
     {
-        _lastActivity = now;
-        RefreshIdle(now);
-    }
-
-    public void RefreshIdle(DateTimeOffset now)
-    {
-        var idle = now - _lastActivity;
-        if (idle < TimeSpan.Zero)
+        if (span < TimeSpan.Zero)
         {
-            idle = TimeSpan.Zero;
+            span = TimeSpan.Zero;
         }
 
-        Idle = idle.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
+        return string.Create(CultureInfo.InvariantCulture, $"{(int)span.TotalHours:00}:{span.Minutes:00}:{span.Seconds:00}");
     }
-
-    public void SetIdleText(string text) => Idle = text;
 
     private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
     {

@@ -1,31 +1,37 @@
+using System.IO;
 using System.Net;
+using ModernFTP.Config;
 using ModernFTP.Engine;
 
 namespace ModernFTP.App;
 
-/// <summary>
-/// What the Users page buttons need from the engine. The engine currently has no public API to
-/// disconnect a session or abort a transfer, so those two return false until it does.
-/// </summary>
+/// <summary>What the Users page needs from the running server.</summary>
 public interface ISessionController
 {
-    /// <summary>Closes the control connection of the session. Returns false when unsupported.</summary>
+    /// <summary>A snapshot of the open sessions. Empty when no server is running.</summary>
+    IReadOnlyList<SessionInfo> Sessions { get; }
+
+    /// <summary>Replies 421 and closes the session. False when no such session is open.</summary>
     bool Disconnect(long sessionId);
 
-    /// <summary>Aborts the running transfer of the session. Returns false when unsupported.</summary>
+    /// <summary>Cancels the session's running transfer. False when there is none.</summary>
     bool AbortTransfer(long sessionId);
 
-    /// <summary>Adds the address to the running server's ban list. Returns false when no server is running.</summary>
+    /// <summary>
+    /// Bans the address on the running server and saves it to bannedAddresses in config.json.
+    /// False when no server is running. Throws <see cref="IOException"/> when the save fails; the ban stays in effect.
+    /// </summary>
     bool BanIp(IPAddress address);
 }
 
-/// <summary>Bridges to the engine where it can; stubs the rest.</summary>
-public sealed class EngineSessionController(Func<FtpServer?> serverAccessor) : ISessionController
+/// <summary>The engine's session API plus the config store for persisted bans.</summary>
+public sealed class EngineSessionController(Func<FtpServer?> serverAccessor, ConfigStore store) : ISessionController
 {
-    // TODO(engine): replace with FtpServer session APIs once they exist.
-    public bool Disconnect(long sessionId) => false;
+    public IReadOnlyList<SessionInfo> Sessions => serverAccessor()?.Sessions ?? [];
 
-    public bool AbortTransfer(long sessionId) => false;
+    public bool Disconnect(long sessionId) => serverAccessor()?.Disconnect(sessionId) == true;
+
+    public bool AbortTransfer(long sessionId) => serverAccessor()?.AbortTransfer(sessionId) == true;
 
     public bool BanIp(IPAddress address)
     {
@@ -35,7 +41,14 @@ public sealed class EngineSessionController(Func<FtpServer?> serverAccessor) : I
             return false;
         }
 
-        server.Options.BanList.Add(address.ToString());
+        var entry = (address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address).ToString();
+        server.Options.BanList.Add(entry);
+        var saved = File.Exists(store.Path) ? store.Load().BannedAddresses : [];
+        if (!saved.Contains(entry, StringComparer.OrdinalIgnoreCase))
+        {
+            store.SaveBannedAddresses([.. saved, entry]);
+        }
+
         return true;
     }
 }

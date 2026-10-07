@@ -16,11 +16,12 @@ public partial class MainWindow : Window
     private const int MaxLogLines = 2000;
 
     private readonly ServerHost _host = new();
-    private readonly ObservableCollection<SessionRow> _sessions = [];
-    private readonly Dictionary<long, SessionRow> _byId = [];
+    private readonly UsersPageViewModel _users = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
-    private long _bytesSent;
-    private long _bytesReceived;
+    private bool _sampleMode;
+    private int _sampleConnections;
+    private long _sampleSent;
+    private long _sampleReceived;
     private readonly TrayController? _tray;
     private AppSettings _settings = new();
     private bool _exiting;
@@ -45,16 +46,13 @@ public partial class MainWindow : Window
                 () => _host.IsRunning);
         }
 
-        UsersList.ItemsSource = _sessions;
+        UsersList.ItemsSource = _users.Rows;
         _host.EventReceived += OnServerEvent;
         _host.StateChanged += UpdateStatus;
         _timer.Tick += (_, _) =>
         {
-            var now = DateTimeOffset.Now;
-            foreach (var row in _sessions)
-            {
-                row.RefreshIdle(now);
-            }
+            RefreshSessions();
+            UpdateStatus();
         };
         _timer.Start();
         UpdateStatus();
@@ -110,8 +108,7 @@ public partial class MainWindow : Window
         }
 
         await _host.StopAsync();
-        _sessions.Clear();
-        _byId.Clear();
+        _users.Clear();
         UpdateStatus();
         AppendLine([new LogSegment(Strings.ServerStopped, LogTag.Text)]);
     }
@@ -120,71 +117,44 @@ public partial class MainWindow : Window
 
     public void ShowUsersPage() => Tabs.SelectedItem = UsersTab;
 
-    /// <summary>Adds one engine event to the log and updates the session list and counters.</summary>
+    /// <summary>Adds one engine event to the log and refreshes the session list and counters.</summary>
     public void OnServerEvent(ServerEvent e)
     {
-        var now = DateTimeOffset.Now;
-        _byId.TryGetValue(e.SessionId, out var row);
-        switch (e)
+        if (e is not TransferProgressEvent)
         {
-            case ConnectedEvent when row is null:
-                row = new SessionRow(e.SessionId, e.RemoteEndPoint?.Address.ToString() ?? "-");
-                _byId[e.SessionId] = row;
-                _sessions.Add(row);
-                break;
-            case AuthenticatedEvent when row is not null:
-                row.User = e.UserName ?? "-";
-                break;
-            case TransferStartedEvent t when row is not null:
-                row.Transfer = t.Path[(t.Path.LastIndexOf('/') + 1)..];
-                row.Progress = 0;
-                row.TimeLeft = "-";
-                break;
-            case TransferCompletedEvent t:
-                if (t.Direction == TransferDirection.Download)
-                {
-                    _bytesSent += t.Bytes;
-                }
-                else if (t.Direction == TransferDirection.Upload)
-                {
-                    _bytesReceived += t.Bytes;
-                }
-
-                if (row is not null)
-                {
-                    row.Transfer = string.Empty;
-                    row.Progress = 0;
-                    row.TimeLeft = string.Empty;
-                }
-
-                break;
-            case DisconnectedEvent when row is not null:
-                _sessions.Remove(row);
-                _byId.Remove(e.SessionId);
-                row = null;
-                break;
+            AppendLine(LogFormatter.Format(e));
         }
 
-        row?.Touch(now);
-        AppendLine(LogFormatter.Format(e));
+        RefreshSessions();
         UpdateStatus();
     }
 
-    /// <summary>Replaces the session list and counters with fixed sample data (capture mode).</summary>
-    public void SetSampleState(IEnumerable<SessionRow> rows, long sent, long received, bool running)
+    /// <summary>Rebuilds the session rows from the server's snapshot. Runs every second and on every event.</summary>
+    private void RefreshSessions()
     {
-        _sessions.Clear();
-        _byId.Clear();
-        foreach (var row in rows)
+        if (_sampleMode)
         {
-            _sessions.Add(row);
-            _byId[row.Id] = row;
+            return;
         }
 
-        _bytesSent = sent;
-        _bytesReceived = received;
+        _users.Refresh(_host.Controller.Sessions, DateTimeOffset.Now);
+        UpdateButtons();
+    }
+
+    /// <summary>Shows fixed sample sessions and counters through the same path as live data (capture mode).</summary>
+    public void LoadSnapshots(IReadOnlyList<(DateTimeOffset At, IReadOnlyList<SessionInfo> Sessions)> snapshots, long sent, long received, bool running)
+    {
+        _sampleMode = true;
         _timer.Stop();
-        StateText.Text = running ? Strings.StatusRunning : Strings.StatusStopped;
+        _users.Clear();
+        foreach (var (at, sessions) in snapshots)
+        {
+            _users.Refresh(sessions, at);
+        }
+
+        _sampleConnections = snapshots[^1].Sessions.Count;
+        _sampleSent = sent;
+        _sampleReceived = received;
         UpdateStatus(running);
     }
 
@@ -248,9 +218,12 @@ public partial class MainWindow : Window
     private void UpdateStatus(bool running)
     {
         StateText.Text = running ? Strings.StatusRunning : Strings.StatusStopped;
-        ConnectionsText.Text = string.Format(CultureInfo.CurrentCulture, Strings.StatusConnectionsFormat, _sessions.Count);
-        SentText.Text = string.Format(CultureInfo.CurrentCulture, Strings.StatusSentFormat, FormatBytes(_bytesSent));
-        ReceivedText.Text = string.Format(CultureInfo.CurrentCulture, Strings.StatusReceivedFormat, FormatBytes(_bytesReceived));
+        var connections = _sampleMode ? _sampleConnections : _host.ActiveConnections;
+        var sent = _sampleMode ? _sampleSent : _host.TotalBytesSent;
+        var received = _sampleMode ? _sampleReceived : _host.TotalBytesReceived;
+        ConnectionsText.Text = string.Format(CultureInfo.CurrentCulture, Strings.StatusConnectionsFormat, connections);
+        SentText.Text = string.Format(CultureInfo.CurrentCulture, Strings.StatusSentFormat, FormatBytes(sent));
+        ReceivedText.Text = string.Format(CultureInfo.CurrentCulture, Strings.StatusReceivedFormat, FormatBytes(received));
         StartItem.IsEnabled = !running;
         StopItem.IsEnabled = running;
     }
@@ -297,11 +270,13 @@ public partial class MainWindow : Window
 
     private void OnMinimizeToTray(object sender, RoutedEventArgs e) => Hide();
 
-    private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void OnSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateButtons();
+
+    private void UpdateButtons()
     {
         var selected = UsersList.SelectedItem as SessionRow;
         DisconnectButton.IsEnabled = selected is not null;
-        AbortButton.IsEnabled = selected?.HasTransfer == true;
+        AbortButton.IsEnabled = selected is not null;
         BanButton.IsEnabled = selected is not null;
     }
 
@@ -310,6 +285,7 @@ public partial class MainWindow : Window
         if (UsersList.SelectedItem is SessionRow row)
         {
             Report(_host.Controller.Disconnect(row.Id), null);
+            RefreshSessions();
         }
     }
 
@@ -323,12 +299,27 @@ public partial class MainWindow : Window
 
     private void OnBan(object sender, RoutedEventArgs e)
     {
-        if (UsersList.SelectedItem is SessionRow row && IPAddress.TryParse(row.Ip, out var address))
+        if (UsersList.SelectedItem is not SessionRow row || !IPAddress.TryParse(row.Ip, out var address))
         {
-            Report(_host.Controller.BanIp(address), string.Format(CultureInfo.CurrentCulture, Strings.BannedFormat, row.Ip));
+            return;
+        }
+
+        try
+        {
+            var banned = _host.Controller.BanIp(address);
+            Report(banned, string.Format(CultureInfo.CurrentCulture, Strings.BannedFormat, row.Ip));
+            if (banned)
+            {
+                _host.Controller.Disconnect(row.Id);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            _host.Controller.Disconnect(row.Id);
+            MessageText.Text = string.Format(CultureInfo.CurrentCulture, Strings.BanSaveFailedFormat, row.Ip, ex.Message);
         }
     }
 
     private void Report(bool ok, string? success) =>
-        MessageText.Text = ok ? success ?? string.Empty : Strings.NotSupportedYet;
+        MessageText.Text = ok ? success ?? string.Empty : Strings.ActionFailed;
 }

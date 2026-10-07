@@ -14,7 +14,8 @@ public sealed class ServerHost
 
     public ServerHost()
     {
-        Controller = new EngineSessionController(() => _server);
+        Store = new ConfigStore(ConfigPath);
+        Controller = new EngineSessionController(() => _server, Store);
     }
 
     /// <summary>Raised on the UI thread for every engine event.</summary>
@@ -24,6 +25,14 @@ public sealed class ServerHost
     public event Action? StateChanged;
 
     public ISessionController Controller { get; }
+
+    public ConfigStore Store { get; }
+
+    public int ActiveConnections => _server?.ActiveConnections ?? 0;
+
+    public long TotalBytesSent => _server?.TotalBytesSent ?? 0;
+
+    public long TotalBytesReceived => _server?.TotalBytesReceived ?? 0;
 
     public bool IsRunning => _server?.IsRunning == true;
 

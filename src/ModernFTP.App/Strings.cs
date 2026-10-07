@@ -35,8 +35,9 @@ public static class Strings
     public const string ButtonDisconnect = "_Disconnect";
     public const string ButtonAbort = "_Abort transfer";
     public const string ButtonBan = "_Ban IP";
-    public const string NotSupportedYet = "The engine does not support this action yet.";
-    public const string BannedFormat = "{0} is banned until the server restarts.";
+    public const string ActionFailed = "Nothing to do: the session or transfer has already ended.";
+    public const string BanSaveFailedFormat = "{0} is banned, but saving it to the config failed: {1}";
+    public const string BannedFormat = "{0} is banned and saved to the config.";
 
     // Status bar
     public const string StatusStopped = "Server stopped";
@@ -104,7 +105,7 @@ public static class Strings
     public const string UserMaxConnections = "Max. connections for this user";
     public const string UserMaxPerIp = "Max. per IP address";
     public const string UserIdleTimeout = "Idle timeout (seconds)";
-    public const string UserLimitsComing = "Per-user limits are coming";
+    public const string UserLimitsHint = "Empty uses the global value";
     public const string UserDownloadSpeed = "Download speed cap (KB/s)";
     public const string UserDownloadSpeedHint = "0 means unlimited";
     public const string UserDirectories = "_Directories";
@@ -161,7 +162,7 @@ public static class Strings
     public const string CaptureLogPageDescription = "Main window, Log page, ten sample log lines.";
     public const string CaptureUsersPageDescription = "Main window, Users page, two sample sessions.";
     public const string CaptureSetupDescription = "FTP Setup window with default values and the restart note under the Application group.";
-    public const string CaptureUserMainDescription = "User Setup window, Main tab, two sample users, per-user limits disabled with a note.";
+    public const string CaptureUserMainDescription = "User Setup window, Main tab, two sample users, per-user limit fields enabled with values.";
     public const string CaptureUserDirectoryDescription = "User Setup window, Directory access tab, two sample directory entries, rights checkboxes for the selected entry.";
     public const string CaptureIpDescription = "IP Restriction window with three sample banned entries and the allow list note.";
     public const string CaptureAboutDescription = "About window.";
