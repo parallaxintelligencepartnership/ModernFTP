@@ -91,8 +91,25 @@ public sealed class ServerFixture : IAsyncLifetime
         }
     }
 
-    public TransferStartedEvent LastTransferStarted(string path) =>
-        _events.OfType<TransferStartedEvent>().Last(e => e.Path == path);
+    /// <summary>
+    /// Events reach subscribers on a background task, so wait (with a deadline) until at least
+    /// <paramref name="count"/> transfers of <paramref name="path"/> were reported, then return the last.
+    /// </summary>
+    public async Task<TransferStartedEvent> LastTransferStartedAsync(string path, int count = 1)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (true)
+        {
+            var matches = _events.OfType<TransferStartedEvent>().Where(e => e.Path == path).ToList();
+            if (matches.Count >= count || DateTime.UtcNow > deadline)
+            {
+                Assert.True(matches.Count >= count, $"expected {count} transfer events for {path}, saw {matches.Count}");
+                return matches[^1];
+            }
+
+            await Task.Delay(20);
+        }
+    }
 
     public string WorkFile(string name) => Path.Combine(Work, name);
 

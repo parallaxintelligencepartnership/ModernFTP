@@ -145,7 +145,14 @@ public sealed class FtpServer : IAsyncDisposable
         cts.Dispose();
     }
 
-    public ValueTask DisposeAsync() => new(StopAsync());
+    public async ValueTask DisposeAsync()
+    {
+        await StopAsync().ConfigureAwait(false);
+        await _events.CompleteAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+    }
+
+    /// <summary>Events discarded because subscribers could not keep up.</summary>
+    public long DroppedEventCount => _events.DroppedCount;
 
     internal void Publish(ServerEvent serverEvent) => _events.Publish(serverEvent);
 

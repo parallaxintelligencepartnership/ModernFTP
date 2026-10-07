@@ -180,6 +180,8 @@ internal static class Program
         }
 
         var options = ConfigLoader.ToServerOptions(config, directory);
+        ConsoleQuickEdit.Disable();
+        await using var log = new ConsoleLog(System.Console.Out);
         using var stop = new CancellationTokenSource();
         System.Console.CancelKeyPress += (_, e) =>
         {
@@ -193,9 +195,9 @@ internal static class Program
         });
 
         await using var server = new FtpServer(options);
-        using var subscription = server.Subscribe(Log);
+        using var subscription = server.Subscribe(e => log.WriteLine(Format(e)));
         await server.StartAsync().ConfigureAwait(false);
-        WriteLine($"{FtpServer.ServerName} listening on {server.LocalEndPoint}, passive ports {options.PassivePortMin} to {options.PassivePortMax}, TLS {(server.TlsAvailable ? "available" : "off")}");
+        log.WriteLine(Stamp($"{FtpServer.ServerName} listening on {server.LocalEndPoint}, passive ports {options.PassivePortMin} to {options.PassivePortMax}, TLS {(server.TlsAvailable ? "available" : "off")}"));
 
         try
         {
@@ -205,19 +207,17 @@ internal static class Program
         {
         }
 
-        WriteLine("Stopping.");
+        log.WriteLine(Stamp("Stopping."));
         await server.StopAsync().ConfigureAwait(false);
-        WriteLine("Stopped.");
+        log.WriteLine(Stamp("Stopped."));
         return 0;
     }
 
-    private static void Log(ServerEvent e)
+    internal static string Format(ServerEvent e)
     {
         var who = e.UserName is null ? string.Empty : $" {e.UserName}";
-        System.Console.Out.WriteLine(
-            $"{e.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss.fff} [{e.SessionId}]{who} {e.Kind}: {e.Describe()}");
+        return $"{e.Timestamp.ToLocalTime():yyyy-MM-dd HH:mm:ss.fff} [{e.SessionId}]{who} {e.Kind}: {e.Describe()}";
     }
 
-    private static void WriteLine(string text) =>
-        System.Console.Out.WriteLine($"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff} {text}");
+    private static string Stamp(string text) => $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss.fff} {text}";
 }

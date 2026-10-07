@@ -112,7 +112,7 @@ public class CurlConformanceTests(ServerFixture fx) : IClassFixture<ServerFixtur
             var result = await Curl.RunAsync("--verbose", "--disable-epsv", "--user", fx.UserPass, "--output", fx.WorkFile("pasv.txt"), Url("pasv.txt"));
             Ok(result);
             Assert.Contains("PASV", result.StdErr, StringComparison.Ordinal);
-            var started = fx.LastTransferStarted("/pasv.txt");
+            var started = await fx.LastTransferStartedAsync("/pasv.txt", i + 1);
             Assert.InRange(started.DataPort, fx.PassiveMin, fx.PassiveMax);
         }
     }
@@ -127,7 +127,7 @@ public class CurlConformanceTests(ServerFixture fx) : IClassFixture<ServerFixtur
         Ok(upload);
         Assert.Contains("PROT P", upload.StdErr, StringComparison.Ordinal);
         Assert.Equal(bytes, await File.ReadAllBytesAsync(Path.Combine(fx.Home, "tls.bin")));
-        Assert.True(fx.LastTransferStarted("/tls.bin").Secure);
+        Assert.True((await fx.LastTransferStartedAsync("/tls.bin")).Secure);
 
         var downloaded = fx.WorkFile("tls-down.bin");
         Ok(await Curl.RunAsync("--ssl-reqd", "--insecure", "--user", fx.UserPass, "--output", downloaded, Url("tls.bin")));
