@@ -52,6 +52,65 @@ public class PermissionTests
     }
 
     [Fact]
+    public async Task RestThenStorOnExistingFileNeedsDelete()
+    {
+        var uploadOnly = FtpPermissions.None with { Upload = true, Download = true, List = true };
+        await using var server = await TestServer.StartAsync(uploadOnly);
+        var target = Path.Combine(server.Home, "precious.txt");
+        await File.WriteAllTextAsync(target, new string('P', 10_000));
+        await using var client = await server.ConnectAsync();
+        Assert.Equal(350, (await client.SendAsync("REST 1")).Code);
+        using var data = await client.OpenPassiveAsync();
+        Assert.Equal(550, (await client.SendAsync("STOR precious.txt")).Code);
+        Assert.Equal(10_000, new FileInfo(target).Length);
+    }
+
+    [Fact]
+    public async Task RestBeyondEndOfFileGets554AndLeavesFilesAlone()
+    {
+        await using var server = await TestServer.StartAsync(FtpPermissions.All);
+        var target = Path.Combine(server.Home, "short.txt");
+        await File.WriteAllTextAsync(target, "0123456789");
+        await using var client = await server.ConnectAsync();
+        Assert.Equal(350, (await client.SendAsync("REST 11")).Code);
+        Assert.Equal(554, (await client.SendAsync("STOR short.txt")).Code);
+        Assert.Equal("0123456789", await File.ReadAllTextAsync(target));
+        Assert.Equal(350, (await client.SendAsync("REST 5")).Code);
+        Assert.Equal(554, (await client.SendAsync("STOR missing.txt")).Code);
+        Assert.False(File.Exists(Path.Combine(server.Home, "missing.txt")));
+
+        // A resume inside the file still works for a user with Delete.
+        Assert.Equal(350, (await client.SendAsync("REST 3")).Code);
+        using (var data = await client.OpenPassiveAsync())
+        {
+            Assert.Equal(150, (await client.SendAsync("STOR short.txt")).Code);
+            await data.GetStream().WriteAsync("abc"u8.ToArray());
+        }
+
+        Assert.Equal(226, (await client.ReadReplyAsync()).Code);
+        Assert.Equal("012abc", await File.ReadAllTextAsync(target));
+    }
+
+    [Fact]
+    public async Task AppeIgnoresRestAndAppendsWithoutDelete()
+    {
+        var uploadOnly = FtpPermissions.None with { Upload = true, List = true };
+        await using var server = await TestServer.StartAsync(uploadOnly);
+        var target = Path.Combine(server.Home, "log.txt");
+        await File.WriteAllTextAsync(target, "0123456789");
+        await using var client = await server.ConnectAsync();
+        Assert.Equal(350, (await client.SendAsync("REST 2")).Code);
+        using (var data = await client.OpenPassiveAsync())
+        {
+            Assert.Equal(150, (await client.SendAsync("APPE log.txt")).Code);
+            await data.GetStream().WriteAsync("abc"u8.ToArray());
+        }
+
+        Assert.Equal(226, (await client.ReadReplyAsync()).Code);
+        Assert.Equal("0123456789abc", await File.ReadAllTextAsync(target));
+    }
+
+    [Fact]
     public async Task FullUserCanManageFilesAndDirectories()
     {
         await using var server = await TestServer.StartAsync(FtpPermissions.All);

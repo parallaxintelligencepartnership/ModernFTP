@@ -575,10 +575,18 @@ internal sealed partial class FtpSession
             return true;
         }
 
-        // Replacing an existing file from the start destroys it, so that also needs Delete.
-        if (!append && offset == 0 && File.Exists(physical) && !permissions.Delete)
+        // Replacing an existing file destroys it, from the start or from a REST offset (STOR truncates
+        // at the offset), so both need Delete. APPE never truncates and ignores REST.
+        var exists = File.Exists(physical);
+        if (!append && exists && !permissions.Delete)
         {
             await ReplyAsync(550, "Permission denied: overwriting needs delete permission.").ConfigureAwait(false);
+            return true;
+        }
+
+        if (!append && offset > 0 && offset > (exists ? new FileInfo(physical).Length : 0))
+        {
+            await ReplyAsync(554, "Restart offset is beyond the end of the file.").ConfigureAwait(false);
             return true;
         }
 
@@ -591,7 +599,7 @@ internal sealed partial class FtpSession
             }
             else if (offset > 0)
             {
-                file = OpenFile(physical, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None);
+                file = OpenFile(physical, FileMode.Open, FileAccess.Write, FileShare.None);
                 if (offset > file.Length)
                 {
                     await file.DisposeAsync().ConfigureAwait(false);
