@@ -103,9 +103,8 @@ public sealed class FtpServer : IAsyncDisposable
                 socket.DualMode = true;
             }
 
-            // No ReuseAddress: on Unix it also sets SO_REUSEPORT, which let a second instance listen on
-            // the same port and take part of the connections. A port already in use must fail here.
-            socket.ExclusiveAddressUse = true;
+            // A port already in use by another listener must fail here on every platform.
+            ListenerSockets.Configure(socket);
             socket.Bind(endpoint);
             socket.Listen(512);
         }

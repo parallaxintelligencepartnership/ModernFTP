@@ -17,8 +17,9 @@ internal static class NetUtil
 }
 
 /// <summary>
-/// Hands out passive listeners from the configured port range, rotating the start point. A port is
-/// leased only by binding its listener exclusively inside the pool lock, and it goes back to the pool
+/// Hands out passive listeners from the configured port range round robin: the search starts at the
+/// port after the last one allocated and wraps, so a port ages through TIME_WAIT before it is reused.
+/// A port is leased only by binding its listener inside the pool lock, and it goes back to the pool
 /// only when that listener is disposed, so two live sessions can never share a passive port.
 /// </summary>
 internal sealed class PassivePortPool(int minPort, int maxPort)
@@ -26,17 +27,17 @@ internal sealed class PassivePortPool(int minPort, int maxPort)
     private readonly int _count = maxPort - minPort + 1;
     private readonly object _gate = new();
     private readonly HashSet<int> _leased = [];
-    private int _cursor = -1;
+    private int _last = -1;
 
     public PassiveDataChannel? TryOpen(IPAddress bindAddress, IPAddress expectedRemote)
     {
         bindAddress = NetUtil.Normalize(bindAddress);
         lock (_gate)
         {
-            _cursor = (_cursor + 1) % _count;
-            for (var i = 0; i < _count; i++)
+            for (var i = 1; i <= _count; i++)
             {
-                var port = minPort + ((_cursor + i) % _count);
+                var index = (_last + i) % _count;
+                var port = minPort + index;
                 if (_leased.Contains(port))
                 {
                     continue;
@@ -45,9 +46,7 @@ internal sealed class PassivePortPool(int minPort, int maxPort)
                 var socket = new Socket(bindAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 try
                 {
-                    // No ReuseAddress: on Unix it also sets SO_REUSEPORT, which lets a second listener
-                    // bind a port that is already in use and steal its data connection.
-                    socket.ExclusiveAddressUse = true;
+                    ListenerSockets.Configure(socket);
                     socket.Bind(new IPEndPoint(bindAddress, port));
                     socket.Listen(1);
                 }
@@ -58,6 +57,7 @@ internal sealed class PassivePortPool(int minPort, int maxPort)
                 }
 
                 _leased.Add(port);
+                _last = index;
                 return new PassiveDataChannel(socket, port, expectedRemote, this);
             }
         }

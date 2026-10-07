@@ -9,7 +9,7 @@ public sealed class ModernFtpConfig
 
     public int PassivePortMin { get; set; } = 50000;
 
-    public int PassivePortMax { get; set; } = 50100;
+    public int PassivePortMax { get; set; } = 50999;
 
     /// <summary>Address to advertise in PASV replies when the server sits behind NAT.</summary>
     public string? PassivePublicAddress { get; set; }

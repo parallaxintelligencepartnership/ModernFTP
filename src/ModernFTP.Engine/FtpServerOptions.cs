@@ -12,7 +12,7 @@ public sealed class FtpServerOptions
 
     public int PassivePortMin { get; set; } = 50000;
 
-    public int PassivePortMax { get; set; } = 50100;
+    public int PassivePortMax { get; set; } = 50999;
 
     /// <summary>Address advertised in PASV replies (for NAT). Null uses the control connection's local address.</summary>
     public IPAddress? PassivePublicAddress { get; set; }
