@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:ModernFTP.App"
         Title="{x:Static local:Strings.SetupTitle}"
         Width="520"
-        Height="740"
+        Height="800"
         MinHeight="420"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
