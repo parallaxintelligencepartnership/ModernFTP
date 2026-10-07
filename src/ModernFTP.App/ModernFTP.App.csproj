@@ -4,12 +4,24 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <!-- ThemeMode (Fluent) is flagged experimental by WPF; accepted for the shell. -->
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
     <RootNamespace>ModernFTP.App</RootNamespace>
     <AssemblyName>ModernFTP</AssemblyName>
+    <ApplicationIcon>Assets\ModernFTP.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WPF and WinForms both define Application, MessageBox and friends; the app uses the WPF ones. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\ModernFTP.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ModernFTP.Engine\ModernFTP.Engine.csproj" />
