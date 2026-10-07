@@ -37,10 +37,9 @@ internal sealed class PassivePortPool(int minPort, int maxPort)
                     // Lets a port in TIME_WAIT from the previous transfer be reused right away.
                     socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
                 }
-                else
-                {
-                    socket.ExclusiveAddressUse = true;
-                }
+
+                // Windows: leave the default sharing mode. SO_EXCLUSIVEADDRUSE would block rebinding a
+                // port while old connections on it sit in TIME_WAIT, starving a small passive range.
 
                 socket.Bind(new IPEndPoint(bindAddress, port));
                 socket.Listen(1);
