@@ -4,9 +4,6 @@ on:
   push:
     tags:
       - "v*"
-    # temporary, remove on merge to main
-    branches:
-      - p3
   workflow_dispatch:
     inputs:
       dry_run:
