@@ -19,6 +19,7 @@ public sealed class FtpServer : IAsyncDisposable
     private readonly Dictionary<IPAddress, int> _unauthenticatedPerIp = [];
     private readonly Dictionary<string, int> _perUser = new(StringComparer.OrdinalIgnoreCase);
     private readonly SslStreamCertificateContext? _certificateContext;
+    private readonly CancellationTokenSource _writeLinger = new();
     private int _total;
     private long _nextSessionId;
     private Socket? _listener;
@@ -78,6 +79,12 @@ public sealed class FtpServer : IAsyncDisposable
 
     internal PassivePortPool PassivePorts { get; }
 
+    /// <summary>How long control replies (the closing 421 included) may still be written once shutdown starts.</summary>
+    internal static TimeSpan WriteLinger { get; } = TimeSpan.FromSeconds(2);
+
+    /// <summary>Cancelled <see cref="WriteLinger"/> after shutdown starts; every control write observes it.</summary>
+    internal CancellationToken WriteLingerToken => _writeLinger.Token;
+
     public IDisposable Subscribe(Action<ServerEvent> handler) => _events.Subscribe(new ActionObserver(handler));
 
     public Task StartAsync(CancellationToken cancellationToken = default)
@@ -129,9 +136,18 @@ public sealed class FtpServer : IAsyncDisposable
 
         _stopping = true;
         _listener?.Dispose();
+
+        // Every control write is linked to this token: from here on no write may take longer than
+        // the linger, even one already blocked on a client that stopped reading.
+        _writeLinger.CancelAfter(WriteLinger);
         var sessions = _sessions.Values.ToArray();
         await Task.WhenAll(sessions.Select(s => s.Session.RequestShutdownAsync("Server is shutting down."))).ConfigureAwait(false);
         await cts.CancelAsync().ConfigureAwait(false);
+        foreach (var entry in sessions)
+        {
+            entry.Session.CloseSocket();
+        }
+
         try
         {
             await Task.WhenAll(sessions.Select(s => s.Task).Append(_acceptLoop ?? Task.CompletedTask))

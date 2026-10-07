@@ -40,4 +40,50 @@ public class ServerLifecycleTests
         Assert.Equal(3, code);
         Assert.Contains($"Port {first.Port} is already in use", error.ToString(), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task ShutdownTakesUnderThreeSecondsWithAClientThatStopsReading()
+    {
+        var server = await TestServer.StartAsync();
+        try
+        {
+            await using var polite = await server.ConnectAsync();
+            using var tcp = new TcpClient { ReceiveBufferSize = 1024 };
+            await tcp.ConnectAsync(IPAddress.Loopback, server.Port);
+            var stream = tcp.GetStream();
+
+            // Pipeline FEAT requests and never read: the server's replies fill both socket buffers
+            // and its write blocks while holding the session's write lock.
+            var feat = Encoding.ASCII.GetBytes(string.Concat(Enumerable.Repeat("FEAT\r\n", 200)));
+            using var stopWriting = new CancellationTokenSource();
+            var writer = Task.Run(async () =>
+            {
+                try
+                {
+                    while (!stopWriting.IsCancellationRequested)
+                    {
+                        await stream.WriteAsync(feat, stopWriting.Token);
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            });
+            await Task.Delay(2000);
+
+            var watch = Stopwatch.StartNew();
+            await server.Server.StopAsync(TimeSpan.FromSeconds(2));
+            watch.Stop();
+            await stopWriting.CancelAsync();
+            Assert.True(watch.Elapsed < TimeSpan.FromSeconds(3), $"StopAsync took {watch.Elapsed}");
+
+            var reply = await polite.ReadReplyAsync();
+            Assert.Equal(421, reply.Code);
+            await writer;
+        }
+        finally
+        {
+            await server.DisposeAsync();
+        }
+    }
 }

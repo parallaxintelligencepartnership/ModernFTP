@@ -138,6 +138,18 @@ internal sealed partial class FtpSession
         }
     }
 
+    /// <summary>Closes the control socket so pending reads and writes fail at once (server shutdown).</summary>
+    public void CloseSocket()
+    {
+        try
+        {
+            _socket.Close();
+        }
+        catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
+        {
+        }
+    }
+
     private async Task CleanupAsync(Task? watchdog)
     {
         try
@@ -353,7 +365,8 @@ internal sealed partial class FtpSession
     private async Task WriteRawAsync(string text)
     {
         var bytes = Encoding.UTF8.GetBytes(text);
-        using var timeout = new CancellationTokenSource(WriteTimeout);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_server.WriteLingerToken);
+        timeout.CancelAfter(WriteTimeout);
         await _writeLock.WaitAsync(timeout.Token).ConfigureAwait(false);
         try
         {
