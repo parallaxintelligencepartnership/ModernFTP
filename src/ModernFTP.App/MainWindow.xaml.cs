@@ -217,17 +217,8 @@ public partial class MainWindow : Window
 
     private void OnExit(object sender, RoutedEventArgs e) => ExitApplication();
 
-    private void OnSetup(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            new SetupWindow(_host.LoadConfig(), _settings, _host.ConfigPath) { Owner = this }.ShowDialog();
-        }
-        catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException)
-        {
-            MessageBox.Show(this, ex.Message, Strings.SetupSaveFailedTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-    }
+    private void OnSetup(object sender, RoutedEventArgs e) =>
+        ShowConfigWindow(config => new SetupWindow(config, _settings, _host.ConfigPath));
 
     private void OnUsers(object sender, RoutedEventArgs e) =>
         ShowConfigWindow(config => new UserSetupWindow(config, _host.ConfigPath));
@@ -237,15 +228,57 @@ public partial class MainWindow : Window
 
     private void ShowConfigWindow(Func<ModernFtpConfig, Window> create)
     {
+        ModernFtpConfig config;
+        bool saved;
         try
         {
-            var window = create(_host.LoadConfig());
+            config = _host.LoadConfig();
+            var window = create(config);
             window.Owner = this;
-            window.ShowDialog();
+            saved = window.ShowDialog() == true;
         }
         catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException)
         {
             MessageBox.Show(this, ex.Message, Strings.SetupSaveFailedTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (saved)
+        {
+            ApplySavedConfig(config);
+        }
+    }
+
+    /// <summary>
+    /// Sends a config that a window just saved to the running server. Shows the restart note only when some
+    /// changed settings cannot apply until the server restarts.
+    /// </summary>
+    private void ApplySavedConfig(ModernFtpConfig config)
+    {
+        IReadOnlyList<string>? restart;
+        try
+        {
+            restart = _host.ApplyConfig(config);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or System.Security.Cryptography.CryptographicException or UnauthorizedAccessException)
+        {
+            var failed = string.Format(CultureInfo.CurrentCulture, Strings.ApplyFailedFormat, ex.Message);
+            AppendLine([new LogSegment(failed, LogTag.Text)]);
+            MessageBox.Show(this, failed, Strings.SetupTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (restart is null)
+        {
+            return;
+        }
+
+        AppendLine([new LogSegment(Strings.SettingsApplied, LogTag.Text)]);
+        if (restart.Count > 0)
+        {
+            var note = string.Format(CultureInfo.CurrentCulture, Strings.RestartNeededFormat, Strings.SetupRestartNote, string.Join(", ", restart));
+            AppendLine([new LogSegment(note, LogTag.Text)]);
+            MessageBox.Show(this, note, Strings.SetupTitle, MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 

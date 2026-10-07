@@ -92,6 +92,18 @@ public sealed class ServerHost
         StateChanged?.Invoke();
     }
 
+    /// <summary>
+    /// Applies a config that was just saved to the running server. Returns the names of changed settings
+    /// that need a restart (empty when everything applied), or null when the server is not running.
+    /// </summary>
+    public IReadOnlyList<string>? ApplyConfig(ModernFtpConfig config)
+    {
+        var server = _server;
+        return server is { IsRunning: true }
+            ? server.ApplyConfig(config, Path.GetDirectoryName(ConfigPath)!)
+            : null;
+    }
+
     /// <summary>Stops the event timer; call when the window that owns this host closes.</summary>
     public void DisposeEvents() => _events.Dispose();
 

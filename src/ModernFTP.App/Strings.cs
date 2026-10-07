@@ -51,6 +51,9 @@ public static class Strings
     public const string ServerStartedFormat = "Server started on {0}.";
     public const string ServerStopped = "Server stopped.";
     public const string EventsDroppedFormat = "{0} events dropped";
+    public const string SettingsApplied = "Saved settings applied to the running server.";
+    public const string RestartNeededFormat = "{0} Not applied yet: {1}.";
+    public const string ApplyFailedFormat = "The settings were saved but could not be applied to the running server: {0}";
     public const string NoUsersWarning = "No users are configured. Add users to the config file before clients can log in.";
 
     // Setup window
@@ -128,7 +131,6 @@ public static class Strings
     public const string RightList = "List";
     public const string UserIpComing = "Per-user IP rules are coming";
     public const string UserNumberFormat = "{0} must be a whole number of 0 or more.";
-    public const string UserSavedRestartNote = "Changes apply the next time the server starts.";
 
     // IP restriction window
     public const string IpTitle = "IP Restriction";
