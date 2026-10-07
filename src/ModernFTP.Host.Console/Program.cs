@@ -13,6 +13,8 @@ internal static class Program
         Usage:
           modernftp serve [--config <path>]          Run the server until Ctrl+C
           modernftp check-config [--config <path>]   Validate a config file and exit
+          modernftp import-typsoft --from <dir> --to <config.json> [--force]
+                                                     Convert a TYPSoft config.ini and users.ini to a ModernFTP config
           modernftp hash-password                    Read a password from stdin, print hash fields
           modernftp --version
 
@@ -31,6 +33,11 @@ internal static class Program
         {
             System.Console.WriteLine(FtpServer.ServerName);
             return 0;
+        }
+
+        if (args[0] == "import-typsoft")
+        {
+            return RunImportCommand(args);
         }
 
         string? configPath = null;
@@ -62,6 +69,41 @@ internal static class Program
             System.Console.Error.WriteLine($"Error: {ex.Message}");
             return 2;
         }
+    }
+
+    private static int RunImportCommand(string[] args)
+    {
+        string? from = null;
+        string? to = null;
+        var force = false;
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (args[i] == "--from" && i + 1 < args.Length)
+            {
+                from = args[++i];
+            }
+            else if (args[i] == "--to" && i + 1 < args.Length)
+            {
+                to = args[++i];
+            }
+            else if (args[i] == "--force")
+            {
+                force = true;
+            }
+            else
+            {
+                System.Console.Error.WriteLine($"Unknown argument: {args[i]}");
+                return 1;
+            }
+        }
+
+        if (from is null || to is null)
+        {
+            System.Console.Error.WriteLine("import-typsoft needs --from <dir> and --to <config.json>.");
+            return 1;
+        }
+
+        return ImportCommand.Run(from, to, force, System.Console.Out, System.Console.Error);
     }
 
     private static int UnknownCommand(string command)
