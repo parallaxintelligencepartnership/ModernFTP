@@ -67,17 +67,19 @@ public class LimitsTests
     [Fact]
     public async Task SessionThatNeverLogsInIsClosedAtTheLoginTimeoutDespiteActivity()
     {
-        await using var server = await TestServer.StartAsync(configure: o => o.LoginTimeout = TimeSpan.FromMilliseconds(800));
+        await using var server = await TestServer.StartAsync(configure: o => o.LoginTimeout = TimeSpan.FromMilliseconds(1500));
         await using var client = await server.ConnectAsync(login: false);
-        var watch = Stopwatch.StartNew();
-        FtpReply reply;
-        do
+
+        // Stay busy for most of the login window, then go quiet so no command of ours is unread when
+        // the server closes (Windows resets such a connection and drops the 421 before it is read).
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        while (watch.Elapsed < TimeSpan.FromMilliseconds(900))
         {
-            reply = await client.SendAsync("NOOP");
+            Assert.Equal(200, (await client.SendAsync("NOOP")).Code);
             await Task.Delay(150);
         }
-        while (reply.Code == 200 && watch.Elapsed < TimeSpan.FromSeconds(5));
 
+        var reply = await client.ReadReplyAsync();
         Assert.Equal(421, reply.Code);
         Assert.Contains("Login timeout", reply.Text, StringComparison.Ordinal);
         Assert.Null(await client.ReadLineOrNullAsync(TimeSpan.FromSeconds(5)));
