@@ -1,0 +1,14 @@
+<Window x:Class="ModernFTP.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ModernFTP"
+        ThemeMode="System"
+        Height="450"
+        Width="800">
+    <Grid>
+        <TextBlock Text="ModernFTP"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   FontSize="24" />
+    </Grid>
+</Window>

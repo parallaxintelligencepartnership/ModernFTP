@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- ThemeMode (Fluent) is flagged experimental by WPF; accepted for the shell. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <RootNamespace>ModernFTP.App</RootNamespace>
+    <AssemblyName>ModernFTP</AssemblyName>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ModernFTP.Engine\ModernFTP.Engine.csproj" />
+    <ProjectReference Include="..\ModernFTP.Config\ModernFTP.Config.csproj" />
+  </ItemGroup>
+
+</Project>

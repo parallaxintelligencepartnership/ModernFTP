@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-windows7.0": {
+      "modernftp.config": {
+        "type": "Project",
+        "dependencies": {
+          "ModernFTP.Engine": "[0.1.0, )"
+        }
+      },
+      "modernftp.engine": {
+        "type": "Project"
+      }
+    },
+    "net10.0-windows7.0/win-x64": {}
+  }
+}
