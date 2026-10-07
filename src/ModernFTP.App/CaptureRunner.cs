@@ -172,10 +172,7 @@ public static class CaptureRunner
             new CommandReceivedEvent { SessionId = 2, RemoteEndPoint = bob, UserName = "bob", Command = "STOR", Argument = "/uploads/site-backup.zip", Timestamp = At(14, 3, 44) },
             new TransferStartedEvent { SessionId = 2, RemoteEndPoint = bob, UserName = "bob", Direction = TransferDirection.Upload, Path = "/uploads/site-backup.zip", DataPort = 50013, Secure = true, Timestamp = At(14, 3, 44) },
         ];
-        foreach (var e in events)
-        {
-            main.OnServerEvent(e);
-        }
+        main.OnServerEvents(events, dropped: 0);
 
         // The Users page gets sample SessionInfo records through the same refresh as live data. Two snapshots
         // four seconds apart give the download a transfer rate, hence a time left.

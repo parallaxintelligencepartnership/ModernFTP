@@ -5,10 +5,10 @@ using ModernFTP.Engine;
 
 namespace ModernFTP.App;
 
-/// <summary>Owns the engine's <see cref="FtpServer"/> for the app and marshals its events to the UI thread.</summary>
+/// <summary>Owns the engine's <see cref="FtpServer"/> for the app and hands its events to the UI thread in batches.</summary>
 public sealed class ServerHost
 {
-    private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
+    private readonly EventBatcher _events;
     private FtpServer? _server;
     private IDisposable? _subscription;
 
@@ -16,10 +16,14 @@ public sealed class ServerHost
     {
         Store = new ConfigStore(ConfigPath);
         Controller = new EngineSessionController(() => _server, Store);
+        _events = new EventBatcher(Dispatcher.CurrentDispatcher, (batch, dropped) => EventsReceived?.Invoke(batch, dropped));
     }
 
-    /// <summary>Raised on the UI thread for every engine event.</summary>
-    public event Action<ServerEvent>? EventReceived;
+    /// <summary>
+    /// Raised on the UI thread at most once per <see cref="EventBatcher.Interval"/> with the engine events since
+    /// the last call and how many were dropped because the queue was full.
+    /// </summary>
+    public event Action<IReadOnlyList<ServerEvent>, long>? EventsReceived;
 
     /// <summary>Raised on the UI thread after the server started or stopped.</summary>
     public event Action? StateChanged;
@@ -54,7 +58,7 @@ public sealed class ServerHost
             var config = LoadConfig();
             var options = ConfigLoader.ToServerOptions(config, Path.GetDirectoryName(ConfigPath)!);
             var server = new FtpServer(options);
-            _subscription = server.Subscribe(e => _dispatcher.BeginInvoke(() => EventReceived?.Invoke(e)));
+            _subscription = _events.Attach(server);
             _server = server;
             await server.StartAsync();
             ListeningOn = server.LocalEndPoint?.ToString();
@@ -84,8 +88,12 @@ public sealed class ServerHost
         _subscription?.Dispose();
         _subscription = null;
         await server.DisposeAsync();
+        _events.Flush();
         StateChanged?.Invoke();
     }
+
+    /// <summary>Stops the event timer; call when the window that owns this host closes.</summary>
+    public void DisposeEvents() => _events.Dispose();
 
     public string? ListeningOn { get; private set; }
 }

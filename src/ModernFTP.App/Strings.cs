@@ -50,6 +50,7 @@ public static class Strings
     public const string StartFailedTitle = "The server could not start";
     public const string ServerStartedFormat = "Server started on {0}.";
     public const string ServerStopped = "Server stopped.";
+    public const string EventsDroppedFormat = "{0} events dropped";
     public const string NoUsersWarning = "No users are configured. Add users to the config file before clients can log in.";
 
     // Setup window

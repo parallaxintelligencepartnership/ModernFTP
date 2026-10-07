@@ -13,8 +13,6 @@ namespace ModernFTP.App;
 
 public partial class MainWindow : Window
 {
-    private const int MaxLogLines = 2000;
-
     private readonly ServerHost _host = new();
     private readonly UsersPageViewModel _users = new();
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -23,6 +21,7 @@ public partial class MainWindow : Window
     private long _sampleSent;
     private long _sampleReceived;
     private readonly TrayController? _tray;
+    private readonly LogView _log;
     private AppSettings _settings = new();
     private bool _exiting;
 
@@ -35,6 +34,7 @@ public partial class MainWindow : Window
     public MainWindow(bool enableTray)
     {
         InitializeComponent();
+        _log = new LogView(LogBox, () => ThemeHelper.IsDark(this));
         if (enableTray)
         {
             _settings = AppSettings.Load();
@@ -47,7 +47,7 @@ public partial class MainWindow : Window
         }
 
         UsersList.ItemsSource = _users.Rows;
-        _host.EventReceived += OnServerEvent;
+        _host.EventsReceived += OnServerEvents;
         _host.StateChanged += UpdateStatus;
         _timer.Tick += (_, _) =>
         {
@@ -117,19 +117,18 @@ public partial class MainWindow : Window
 
     public void ShowUsersPage() => Tabs.SelectedItem = UsersTab;
 
-    /// <summary>Adds one engine event to the log and refreshes the session list and counters.</summary>
-    public void OnServerEvent(ServerEvent e)
+    /// <summary>
+    /// Adds one batch of engine events to the log (with a drop notice when events were dropped) and refreshes
+    /// the session list and counters once for the whole batch.
+    /// </summary>
+    public void OnServerEvents(IReadOnlyList<ServerEvent> events, long dropped)
     {
-        if (e is not TransferProgressEvent)
-        {
-            AppendLine(LogFormatter.Format(e));
-        }
-
+        _log.Append(LogView.Lines(events, dropped));
         RefreshSessions();
         UpdateStatus();
     }
 
-    /// <summary>Rebuilds the session rows from the server's snapshot. Runs every second and on every event.</summary>
+    /// <summary>Rebuilds the session rows from the server's snapshot. Runs every second and once per event batch.</summary>
     private void RefreshSessions()
     {
         if (_sampleMode)
@@ -189,29 +188,13 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _timer.Stop();
+        _host.DisposeEvents();
         _tray?.Dispose();
         base.OnClosed(e);
         Application.Current.Shutdown();
     }
 
-    private void AppendLine(IReadOnlyList<LogSegment> segments)
-    {
-        var dark = ThemeHelper.IsDark(this);
-        var paragraph = new Paragraph { Margin = new Thickness(0) };
-        foreach (var segment in segments)
-        {
-            paragraph.Inlines.Add(new Run(segment.Text) { Foreground = LogPalette.Get(segment.Tag, dark) });
-        }
-
-        var document = LogBox.Document;
-        document.Blocks.Add(paragraph);
-        while (document.Blocks.Count > MaxLogLines)
-        {
-            document.Blocks.Remove(document.Blocks.FirstBlock);
-        }
-
-        LogBox.ScrollToEnd();
-    }
+    private void AppendLine(IReadOnlyList<LogSegment> segments) => _log.AppendLine(segments);
 
     private void UpdateStatus() => UpdateStatus(_host.IsRunning);
 
