@@ -5,7 +5,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>ModernFTP.Host.Console</RootNamespace>
     <AssemblyName>modernftp</AssemblyName>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>

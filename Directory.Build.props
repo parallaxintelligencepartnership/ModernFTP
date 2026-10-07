@@ -10,5 +10,8 @@
     <Product>ModernFTP</Product>
     <Version>0.1.0</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Windows release builds publish for win-x64; declaring it everywhere keeps every lock file
+         valid when "dotnet publish -r win-x64" restores the whole project graph. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 </Project>

@@ -34,9 +34,11 @@ jobs:
 
       - name: Publish win-x64 single file (framework dependent)
         shell: pwsh
+        # The single file analyzer pulls in Microsoft.NET.ILLink.Tasks at the SDK's own patch version,
+        # which would break locked restore whenever the runner SDK moves; it is off for publish only.
         run: |
-          dotnet publish src/ModernFTP.Host.Console/ModernFTP.Host.Console.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:RestoreLockedMode=true -o publish/console
-          dotnet publish src/ModernFTP.App/ModernFTP.App.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:RestoreLockedMode=true -o publish/app
+          dotnet publish src/ModernFTP.Host.Console/ModernFTP.Host.Console.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:EnableSingleFileAnalyzer=false -p:RestoreLockedMode=true -o publish/console
+          dotnet publish src/ModernFTP.App/ModernFTP.App.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:EnableSingleFileAnalyzer=false -p:RestoreLockedMode=true -o publish/app
           Get-ChildItem publish -Recurse -File | ForEach-Object { "{0,-50} {1,12:N0} bytes" -f $_.FullName.Substring((Resolve-Path publish).Path.Length + 1), $_.Length }
 
       - name: Smoke test the console host with curl

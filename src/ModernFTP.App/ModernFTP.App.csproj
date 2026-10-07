@@ -9,7 +9,6 @@
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
     <RootNamespace>ModernFTP.App</RootNamespace>
     <AssemblyName>ModernFTP</AssemblyName>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
