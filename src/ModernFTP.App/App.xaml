@@ -1,7 +1,8 @@
 <Application x:Class="ModernFTP.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             ThemeMode="System"
-             StartupUri="MainWindow.xaml">
-    <Application.Resources />
+             ThemeMode="System">
+    <Application.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </Application.Resources>
 </Application>
