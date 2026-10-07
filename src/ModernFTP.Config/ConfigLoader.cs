@@ -107,6 +107,16 @@ public static class ConfigLoader
                 errors.Add($"user '{label}' downloadRateKBps must be 0 (unlimited) or more.");
             }
 
+            if (user.MaxConnections < 0 || user.MaxConnectionsPerIp < 0)
+            {
+                errors.Add($"user '{label}' maxConnections and maxConnectionsPerIp must be 0 (unlimited) or more.");
+            }
+
+            if (user.IdleTimeoutSeconds is < 0 or > 600 * 60)
+            {
+                errors.Add($"user '{label}' idleTimeoutSeconds must be between 0 and 36000.");
+            }
+
             if (IsAnonymous(user))
             {
                 continue;
@@ -195,6 +205,9 @@ public static class ConfigLoader
                 Enabled = user.Enabled,
                 HomeDirectory = Path.GetFullPath(homePath, configDirectory),
                 DownloadRateKBps = user.DownloadRateKBps,
+                MaxConnections = user.MaxConnections,
+                MaxConnectionsPerIp = user.MaxConnectionsPerIp,
+                IdleTimeout = user.IdleTimeoutSeconds is { } idle ? TimeSpan.FromSeconds(idle) : null,
                 Permissions = new PermissionRules(new FtpPermissions(
                     p.Download, p.Upload, p.Delete, p.MakeDir, p.RemoveDir, p.Rename, p.List)),
             });

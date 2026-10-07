@@ -210,6 +210,16 @@ public static class TypsoftImporter
                     case "MAXSPEED":
                         user.DownloadRateKBps = ParseInt(entry, path, 0, int.MaxValue);
                         break;
+                    case "MAXUSER":
+                        user.MaxConnections = ParseInt(entry, path, 0, int.MaxValue);
+                        break;
+                    case "MAXUSERIP":
+                        user.MaxConnectionsPerIp = ParseInt(entry, path, 0, int.MaxValue);
+                        break;
+                    case "TIME-OUT":
+                        // Minutes in the original, maximum 600.
+                        user.IdleTimeoutSeconds = ParseInt(entry, path, 0, 600) * 60;
+                        break;
                     case "PASSWORD":
                         break;
                     default:

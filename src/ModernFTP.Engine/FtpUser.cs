@@ -15,4 +15,16 @@ public sealed class FtpUser
 
     /// <summary>Download cap in KB/s (1 KB = 1024 bytes). 0 means unlimited.</summary>
     public int DownloadRateKBps { get; init; }
+
+    /// <summary>
+    /// Sessions this user may have open at once. Null uses the server's per user limit; when both are
+    /// set the lower one applies. 0 means no limit of its own.
+    /// </summary>
+    public int? MaxConnections { get; init; }
+
+    /// <summary>Sessions this user may have open from one address. Null or 0 means no limit of its own.</summary>
+    public int? MaxConnectionsPerIp { get; init; }
+
+    /// <summary>Idle timeout once this user is logged in. Null uses the server's; zero or negative disables.</summary>
+    public TimeSpan? IdleTimeout { get; init; }
 }

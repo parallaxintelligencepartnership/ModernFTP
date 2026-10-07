@@ -127,9 +127,9 @@ internal sealed partial class FtpSession
             return true;
         }
 
-        if (!_server.TryAcquireUserSlot(user.UserName))
+        if (_server.TryAcquireUserSlot(user, RemoteEndPoint.Address) is { } refused)
         {
-            _closeReason = "per user connection limit reached";
+            _closeReason = refused;
             await ReplyAsync(421, "Too many connections for this user, try again later.").ConfigureAwait(false);
             return false;
         }

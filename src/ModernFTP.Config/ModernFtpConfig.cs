@@ -80,6 +80,15 @@ public sealed class UserConfig
 
     public int DownloadRateKBps { get; set; }
 
+    /// <summary>Sessions this user may have open at once. Null uses maxConnectionsPerUser; the lower of the two applies.</summary>
+    public int? MaxConnections { get; set; }
+
+    /// <summary>Sessions this user may have open from one address. Null means no limit of its own.</summary>
+    public int? MaxConnectionsPerIp { get; set; }
+
+    /// <summary>Idle timeout for this user in seconds. Null uses idleTimeoutSeconds; 0 disables.</summary>
+    public int? IdleTimeoutSeconds { get; set; }
+
     public PermissionsConfig Permissions { get; set; } = new();
 
     /// <summary>

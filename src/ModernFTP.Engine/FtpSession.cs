@@ -75,6 +75,8 @@ internal sealed partial class FtpSession
 
     private IPAddress RemoteAddress => NetUtil.Normalize(RemoteEndPoint.Address);
 
+    private TimeSpan EffectiveIdleTimeout => Volatile.Read(ref _user)?.IdleTimeout ?? _options.IdleTimeout;
+
     public async Task RunAsync()
     {
         var token = _cts.Token;
@@ -194,20 +196,24 @@ internal sealed partial class FtpSession
 
     private void Touch() => Interlocked.Exchange(ref _lastActivity, Environment.TickCount64);
 
+    /// <summary>Uses the logged in user's idle timeout when it has one, otherwise the server's.</summary>
     private async Task WatchIdleAsync(CancellationToken token)
     {
-        var idle = _options.IdleTimeout;
-        if (idle <= TimeSpan.Zero)
-        {
-            return;
-        }
-
-        var period = TimeSpan.FromMilliseconds(Math.Clamp(idle.TotalMilliseconds / 4, 50, 1000));
-        using var timer = new PeriodicTimer(period);
         try
         {
-            while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
+            while (!token.IsCancellationRequested)
             {
+                var idle = EffectiveIdleTimeout;
+                var period = idle > TimeSpan.Zero
+                    ? TimeSpan.FromMilliseconds(Math.Clamp(idle.TotalMilliseconds / 4, 50, 1000))
+                    : TimeSpan.FromSeconds(1);
+                await Task.Delay(period, token).ConfigureAwait(false);
+                idle = EffectiveIdleTimeout;
+                if (idle <= TimeSpan.Zero)
+                {
+                    continue;
+                }
+
                 var quiet = Environment.TickCount64 - Interlocked.Read(ref _lastActivity);
                 if (quiet >= idle.TotalMilliseconds)
                 {

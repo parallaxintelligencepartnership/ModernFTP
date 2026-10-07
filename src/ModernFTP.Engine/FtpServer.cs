@@ -18,6 +18,7 @@ public sealed class FtpServer : IAsyncDisposable
     private readonly Dictionary<IPAddress, int> _perIp = [];
     private readonly Dictionary<IPAddress, int> _unauthenticatedPerIp = [];
     private readonly Dictionary<string, int> _perUser = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<(string User, IPAddress Address), int> _perUserIp = new(UserAddressComparer.Instance);
     private readonly SslStreamCertificateContext? _certificateContext;
     private readonly CancellationTokenSource _writeLinger = new();
     private int _total;
@@ -187,20 +188,41 @@ public sealed class FtpServer : IAsyncDisposable
             CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
         };
 
-    internal bool TryAcquireUserSlot(string userName)
+    /// <summary>Takes a per user slot at login. Returns the reason when a limit refuses it, otherwise null.</summary>
+    internal string? TryAcquireUserSlot(FtpUser user, IPAddress address)
     {
+        address = NetUtil.Normalize(address);
+        var perUserLimit = Lower(Options.MaxConnectionsPerUser, user.MaxConnections);
+        var perIpLimit = user.MaxConnectionsPerIp ?? 0;
         lock (_limitsGate)
         {
-            var count = _perUser.GetValueOrDefault(userName);
-            if (Options.MaxConnectionsPerUser > 0 && count >= Options.MaxConnectionsPerUser)
+            var count = _perUser.GetValueOrDefault(user.UserName);
+            if (perUserLimit > 0 && count >= perUserLimit)
             {
-                return false;
+                return "per user connection limit reached";
             }
 
-            _perUser[userName] = count + 1;
-            return true;
+            var key = (user.UserName, address);
+            var fromAddress = _perUserIp.GetValueOrDefault(key);
+            if (perIpLimit > 0 && fromAddress >= perIpLimit)
+            {
+                return "per user and address connection limit reached";
+            }
+
+            _perUser[user.UserName] = count + 1;
+            _perUserIp[key] = fromAddress + 1;
+            return null;
         }
     }
+
+    /// <summary>The lower of two limits where 0 or null means unlimited; 0 when both are unlimited.</summary>
+    private static int Lower(int global, int? own) => (global > 0, own > 0) switch
+    {
+        (true, true) => Math.Min(global, own!.Value),
+        (true, false) => global,
+        (false, true) => own!.Value,
+        _ => 0,
+    };
 
     /// <summary>Called once when a session logs in: it no longer counts as unauthenticated.</summary>
     internal void MarkAuthenticated(IPAddress address)
@@ -344,6 +366,22 @@ public sealed class FtpServer : IAsyncDisposable
                     Decrement(_unauthenticatedPerIp, address);
                 }
 
+                if (session?.User is { } loggedIn)
+                {
+                    var key = (loggedIn.UserName, address);
+                    if (_perUserIp.TryGetValue(key, out var fromAddress))
+                    {
+                        if (fromAddress <= 1)
+                        {
+                            _perUserIp.Remove(key);
+                        }
+                        else
+                        {
+                            _perUserIp[key] = fromAddress - 1;
+                        }
+                    }
+                }
+
                 if (session?.User is { } user && _perUser.TryGetValue(user.UserName, out var userCount))
                 {
                     if (userCount <= 1)
@@ -386,6 +424,17 @@ public sealed class FtpServer : IAsyncDisposable
     }
 
     private sealed record SessionEntry(FtpSession Session, Task Task);
+
+    private sealed class UserAddressComparer : IEqualityComparer<(string User, IPAddress Address)>
+    {
+        public static UserAddressComparer Instance { get; } = new();
+
+        public bool Equals((string User, IPAddress Address) x, (string User, IPAddress Address) y) =>
+            StringComparer.OrdinalIgnoreCase.Equals(x.User, y.User) && x.Address.Equals(y.Address);
+
+        public int GetHashCode((string User, IPAddress Address) obj) =>
+            HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(obj.User), obj.Address);
+    }
 }
 
 /// <summary>The control port is already taken, usually by another running server.</summary>

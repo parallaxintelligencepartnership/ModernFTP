@@ -63,6 +63,21 @@ public class TypsoftImporterTests : IDisposable
     }
 
     [Fact]
+    public void PerUserLimitsAndTimeOutAreMapped()
+    {
+        var result = TypsoftImporter.Import(Source());
+        var alice = result.Config.Users.Single(u => u.Username == "alice");
+        Assert.Equal(3, alice.MaxConnections);
+        Assert.Equal(2, alice.MaxConnectionsPerIp);
+        Assert.Equal(600, alice.IdleTimeoutSeconds);
+        var bob = result.Config.Users.Single(u => u.Username == "bob");
+        Assert.Null(bob.MaxConnections);
+        Assert.Null(bob.MaxConnectionsPerIp);
+        Assert.Null(bob.IdleTimeoutSeconds);
+        Assert.DoesNotContain(result.Warnings, w => w.StartsWith("User alice: ", StringComparison.Ordinal) && w.Contains("no ModernFTP equivalent", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void NoAccessEntryClearsEveryRight()
     {
         var bob = TypsoftImporter.Import(Source()).Config.Users.Single(u => u.Username == "bob");
@@ -106,7 +121,7 @@ public class TypsoftImporterTests : IDisposable
         var source = Source();
         File.AppendAllText(Path.Combine(source, "users.ini"), "this is not valid\n");
         var ex = Assert.Throws<InvalidDataException>(() => TypsoftImporter.Import(source));
-        Assert.Contains("users.ini line 18", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("users.ini line 20", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
