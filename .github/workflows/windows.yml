@@ -41,6 +41,38 @@ jobs:
           dotnet publish src/ModernFTP.App/ModernFTP.App.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:EnableSingleFileAnalyzer=false -p:RestoreLockedMode=true -o publish/app
           Get-ChildItem publish -Recurse -File | ForEach-Object { "{0,-50} {1,12:N0} bytes" -f $_.FullName.Substring((Resolve-Path publish).Path.Length + 1), $_.Length }
 
+      - name: Capture the UI (light and dark)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'ui-capture'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $exe = (Resolve-Path 'publish/app/ModernFTP.exe').Path
+          $proc = Start-Process -FilePath $exe -ArgumentList @('--capture', $dir) -PassThru
+          if (-not $proc.WaitForExit(120000)) {
+            Stop-Process -Id $proc.Id -Force
+            throw 'UI capture timed out after 120 seconds.'
+          }
+          $proc.WaitForExit()
+          Write-Host "Capture exit code: $($proc.ExitCode)"
+          Get-ChildItem $dir | ForEach-Object { "{0,-40} {1,10:N0} bytes" -f $_.Name, $_.Length }
+          if (Test-Path (Join-Path $dir 'capture-error.txt')) {
+            Get-Content (Join-Path $dir 'capture-error.txt')
+            throw 'UI capture reported an error.'
+          }
+          if ($proc.ExitCode -ne 0) { throw "UI capture failed with exit code $($proc.ExitCode)." }
+          $pngs = @(Get-ChildItem $dir -Filter '*.png')
+          if ($pngs.Count -ne 8) { throw "Expected 8 screenshots, found $($pngs.Count)." }
+          if (-not (Test-Path (Join-Path $dir 'contact-sheet.md'))) { throw 'contact-sheet.md is missing.' }
+
+      - name: Upload UI capture
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ui-capture
+          path: ${{ runner.temp }}/ui-capture
+          if-no-files-found: error
+
       - name: Smoke test the console host with curl
         shell: pwsh
         run: |
