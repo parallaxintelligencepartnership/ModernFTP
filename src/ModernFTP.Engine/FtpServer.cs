@@ -22,6 +22,8 @@ public sealed class FtpServer : IAsyncDisposable
     private readonly SslStreamCertificateContext? _certificateContext;
     private readonly CancellationTokenSource _writeLinger = new();
     private int _total;
+    private long _totalBytesSent;
+    private long _totalBytesReceived;
     private long _nextSessionId;
     private Socket? _listener;
     private CancellationTokenSource? _cts;
@@ -75,6 +77,15 @@ public sealed class FtpServer : IAsyncDisposable
     public bool IsRunning => _acceptLoop is { IsCompleted: false };
 
     public int SessionCount => _sessions.Count;
+
+    /// <summary>Open control connections that passed the accept checks.</summary>
+    public int ActiveConnections => _sessions.Count;
+
+    /// <summary>Data connection payload bytes sent to clients since the server was created.</summary>
+    public long TotalBytesSent => Interlocked.Read(ref _totalBytesSent);
+
+    /// <summary>Data connection payload bytes received from clients since the server was created.</summary>
+    public long TotalBytesReceived => Interlocked.Read(ref _totalBytesReceived);
 
     /// <summary>A snapshot of every open session, ordered by id.</summary>
     public IReadOnlyList<SessionInfo> Sessions =>
@@ -198,6 +209,18 @@ public sealed class FtpServer : IAsyncDisposable
     public long DroppedEventCount => _events.DroppedCount;
 
     internal void Publish(ServerEvent serverEvent) => _events.Publish(serverEvent);
+
+    internal void AddDataBytes(bool sent, int count)
+    {
+        if (sent)
+        {
+            Interlocked.Add(ref _totalBytesSent, count);
+        }
+        else
+        {
+            Interlocked.Add(ref _totalBytesReceived, count);
+        }
+    }
 
     internal FtpUser? FindUser(string name) => _users.GetValueOrDefault(name);
 

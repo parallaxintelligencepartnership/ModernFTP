@@ -129,9 +129,9 @@ internal sealed partial class FtpSession
         return true;
     }
 
-    private IPAddress RemoteAddress => NetUtil.Normalize(RemoteEndPoint.Address);
-
     private TimeSpan EffectiveIdleTimeout => Volatile.Read(ref _user)?.IdleTimeout ?? _options.IdleTimeout;
+
+    private IPAddress RemoteAddress => NetUtil.Normalize(RemoteEndPoint.Address);
 
     public async Task RunAsync()
     {
@@ -672,7 +672,7 @@ internal sealed partial class FtpSession
 
     private void CountBytes(TransferMeter meter, bool sent, int count)
     {
-        meter.Add(count);
+        var done = meter.Add(count);
         if (sent)
         {
             Interlocked.Add(ref _bytesSent, count);
@@ -680,6 +680,24 @@ internal sealed partial class FtpSession
         else
         {
             Interlocked.Add(ref _bytesReceived, count);
+        }
+
+        _server.AddDataBytes(sent, count);
+        if (meter.ProgressDue())
+        {
+            _server.Publish(new TransferProgressEvent
+            {
+                SessionId = Id,
+                RemoteEndPoint = RemoteEndPoint,
+                UserName = _user?.UserName,
+                Direction = meter.Direction,
+                Path = meter.Path,
+                BytesDone = done,
+                TotalBytes = meter.TotalBytes,
+                TotalBytesSent = _server.TotalBytesSent,
+                TotalBytesReceived = _server.TotalBytesReceived,
+                ActiveConnections = _server.ActiveConnections,
+            });
         }
     }
 

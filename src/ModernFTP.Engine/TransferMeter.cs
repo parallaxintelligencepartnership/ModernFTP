@@ -1,9 +1,14 @@
+using System.Diagnostics;
+
 namespace ModernFTP.Engine;
 
 /// <summary>State of one running transfer: byte count, progress throttle and the server side abort.</summary>
 internal sealed class TransferMeter(string path, TransferDirection direction, long? totalBytes, CancellationTokenSource cancellation)
 {
+    public static readonly TimeSpan ProgressInterval = TimeSpan.FromMilliseconds(500);
+
     private long _bytesDone;
+    private long _lastProgress = Stopwatch.GetTimestamp();
     private int _abortedByServer;
 
     public string Path { get; } = path;
@@ -19,6 +24,15 @@ internal sealed class TransferMeter(string path, TransferDirection direction, lo
     public bool AbortedByServer => Volatile.Read(ref _abortedByServer) == 1;
 
     public long Add(int count) => Interlocked.Add(ref _bytesDone, count);
+
+    /// <summary>True at most once per <see cref="ProgressInterval"/>.</summary>
+    public bool ProgressDue()
+    {
+        var last = Interlocked.Read(ref _lastProgress);
+        var now = Stopwatch.GetTimestamp();
+        return Stopwatch.GetElapsedTime(last, now) >= ProgressInterval
+            && Interlocked.CompareExchange(ref _lastProgress, now, last) == last;
+    }
 
     public void AbortFromServer()
     {

@@ -102,3 +102,27 @@ public sealed record ErrorEvent : ServerEvent
 
     public override string Describe() => Message;
 }
+
+/// <summary>Sent at most every 500 ms while a transfer moves data.</summary>
+public sealed record TransferProgressEvent : ServerEvent
+{
+    public required TransferDirection Direction { get; init; }
+
+    public required string Path { get; init; }
+
+    public required long BytesDone { get; init; }
+
+    /// <summary>Known for downloads and listings; null for uploads.</summary>
+    public long? TotalBytes { get; init; }
+
+    /// <summary>Server wide data bytes sent to clients so far.</summary>
+    public required long TotalBytesSent { get; init; }
+
+    /// <summary>Server wide data bytes received from clients so far.</summary>
+    public required long TotalBytesReceived { get; init; }
+
+    public required int ActiveConnections { get; init; }
+
+    public override string Describe() =>
+        $"{Direction} {Path} {BytesDone}{(TotalBytes is { } total ? $" of {total}" : string.Empty)} bytes";
+}
