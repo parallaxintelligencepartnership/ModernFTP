@@ -76,6 +76,10 @@ public sealed class FtpServer : IAsyncDisposable
 
     public int SessionCount => _sessions.Count;
 
+    /// <summary>A snapshot of every open session, ordered by id.</summary>
+    public IReadOnlyList<SessionInfo> Sessions =>
+        [.. _sessions.Values.Select(e => e.Session.Snapshot()).OrderBy(s => s.Id)];
+
     public bool TlsAvailable => _certificateContext is not null;
 
     internal PassivePortPool PassivePorts { get; }
@@ -85,6 +89,25 @@ public sealed class FtpServer : IAsyncDisposable
 
     /// <summary>Cancelled <see cref="WriteLinger"/> after shutdown starts; every control write observes it.</summary>
     internal CancellationToken WriteLingerToken => _writeLinger.Token;
+
+    /// <summary>Replies 421 and closes the session. False when no such session is open.</summary>
+    public bool Disconnect(long sessionId)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var entry))
+        {
+            return false;
+        }
+
+        _ = entry.Session.DisconnectAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Cancels the session's running data transfer; the client gets 426 then 226 and the session stays
+    /// open. False when no such session is open or it has no transfer running.
+    /// </summary>
+    public bool AbortTransfer(long sessionId) =>
+        _sessions.TryGetValue(sessionId, out var entry) && entry.Session.AbortTransferFromServer();
 
     public IDisposable Subscribe(Action<ServerEvent> handler) => _events.Subscribe(new ActionObserver(handler));
 

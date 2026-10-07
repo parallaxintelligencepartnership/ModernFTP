@@ -539,7 +539,8 @@ internal sealed partial class FtpSession
             TransferDirection.Download,
             path,
             (data, token) => CopyAsync(file, rate > 0 ? new ThrottledStream(data, rate) : data, token),
-            file).ConfigureAwait(false);
+            file,
+            file.Length - offset).ConfigureAwait(false);
     }
 
     private async Task<bool> StoreAsync(string argument, bool append)
@@ -626,7 +627,8 @@ internal sealed partial class FtpSession
             TransferDirection.Upload,
             path,
             (data, token) => CopyAsync(data, file, token),
-            file).ConfigureAwait(false);
+            file,
+            null).ConfigureAwait(false);
     }
 
     private async Task<bool> ListAsync(string argument, ListFormat format)
@@ -686,7 +688,8 @@ internal sealed partial class FtpSession
                 await data.WriteAsync(bytes, token).ConfigureAwait(false);
                 return bytes.Length;
             },
-            null).ConfigureAwait(false);
+            null,
+            bytes.Length).ConfigureAwait(false);
     }
 
     private async Task<bool> MlstAsync(string argument)

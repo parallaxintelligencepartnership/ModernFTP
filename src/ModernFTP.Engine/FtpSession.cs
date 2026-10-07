@@ -46,6 +46,9 @@ internal sealed partial class FtpSession
     private Task? _transfer;
     private CancellationTokenSource? _transferCts;
     private volatile bool _transferAborted;
+    private TransferMeter? _meter;
+    private long _bytesSent;
+    private long _bytesReceived;
 
     public FtpSession(FtpServer server, long id, Socket socket, CancellationToken serverToken)
     {
@@ -59,6 +62,7 @@ internal sealed partial class FtpSession
         _control = _network;
         _cts = CancellationTokenSource.CreateLinkedTokenSource(serverToken);
         _commands = BuildCommandTable();
+        ConnectedAt = DateTimeOffset.UtcNow;
     }
 
     private delegate Task<bool> CommandHandler(string argument);
@@ -72,6 +76,58 @@ internal sealed partial class FtpSession
     public FtpUser? User => _user;
 
     public string CloseReason => _closeReason;
+
+    public DateTimeOffset ConnectedAt { get; }
+
+    /// <summary>A point in time view for <see cref="FtpServer.Sessions"/>; safe from any thread.</summary>
+    public SessionInfo Snapshot()
+    {
+        var quietMs = Environment.TickCount64 - Interlocked.Read(ref _lastActivity);
+        return new SessionInfo
+        {
+            Id = Id,
+            User = Volatile.Read(ref _user)?.UserName,
+            RemoteAddress = RemoteAddress,
+            ConnectedAt = ConnectedAt,
+            LastActivity = DateTimeOffset.UtcNow - TimeSpan.FromMilliseconds(Math.Max(0, quietMs)),
+            CurrentTransfer = Volatile.Read(ref _meter)?.Snapshot(),
+            BytesSent = Interlocked.Read(ref _bytesSent),
+            BytesReceived = Interlocked.Read(ref _bytesReceived),
+        };
+    }
+
+    /// <summary>Server operator disconnect: 421, then the control connection is closed.</summary>
+    public async Task DisconnectAsync()
+    {
+        _closeReason = "disconnected by the server administrator";
+        await TryReplyAsync(421, "Disconnected by the server administrator.").ConfigureAwait(false);
+        try
+        {
+            await _cts.CancelAsync().ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        CloseSocket();
+    }
+
+    /// <summary>
+    /// Server operator abort of the running transfer. The transfer replies 426 and then 226, as if the
+    /// client had sent ABOR, and the session stays open. False when no transfer is running.
+    /// </summary>
+    public bool AbortTransferFromServer()
+    {
+        var meter = Volatile.Read(ref _meter);
+        if (meter is null)
+        {
+            return false;
+        }
+
+        _transferAborted = true;
+        meter.AbortFromServer();
+        return true;
+    }
 
     private IPAddress RemoteAddress => NetUtil.Normalize(RemoteEndPoint.Address);
 
@@ -449,7 +505,8 @@ internal sealed partial class FtpSession
         TransferDirection direction,
         VirtualPath path,
         Func<Stream, CancellationToken, Task<long>> body,
-        IDisposable? resource)
+        IDisposable? resource,
+        long? totalBytes)
     {
         var channel = _dataChannel;
         _dataChannel = null;
@@ -465,7 +522,9 @@ internal sealed partial class FtpSession
         _transferCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
         var mode = direction == TransferDirection.Listing ? "ASCII" : _binary ? "BINARY" : "ASCII";
         await ReplyAsync(150, $"Opening {mode} mode data connection for {path}.").ConfigureAwait(false);
-        _transfer = RunTransferAsync(channel, direction, path, body, resource, _transferCts.Token);
+        var meter = new TransferMeter(path.ToString(), direction, totalBytes, _transferCts);
+        Volatile.Write(ref _meter, meter);
+        _transfer = RunTransferAsync(channel, direction, path, body, resource, meter, _transferCts.Token);
         return true;
     }
 
@@ -475,6 +534,7 @@ internal sealed partial class FtpSession
         VirtualPath path,
         Func<Stream, CancellationToken, Task<long>> body,
         IDisposable? resource,
+        TransferMeter meter,
         CancellationToken token)
     {
         await Task.Yield();
@@ -514,7 +574,8 @@ internal sealed partial class FtpSession
                 Secure = _protectData,
             });
 
-            bytes = await body(data, token).ConfigureAwait(false);
+            var sent = direction != TransferDirection.Upload;
+            bytes = await body(new MeteredStream(data, count => CountBytes(meter, sent, count)), token).ConfigureAwait(false);
             await data.FlushAsync(token).ConfigureAwait(false);
             if (data is SslStream ssl)
             {
@@ -581,6 +642,7 @@ internal sealed partial class FtpSession
 
             channel.Dispose();
             resource?.Dispose();
+            Interlocked.CompareExchange(ref _meter, null, meter);
         }
 
         _server.Publish(new TransferCompletedEvent
@@ -599,6 +661,25 @@ internal sealed partial class FtpSession
         if (code != 0)
         {
             await TryReplyAsync(code, reply).ConfigureAwait(false);
+        }
+
+        if (code == 426 && meter.AbortedByServer)
+        {
+            // Completes the abort the way ABOR would, so the client sees 426 then 226 and can go on.
+            await TryReplyAsync(226, "Abort successful.").ConfigureAwait(false);
+        }
+    }
+
+    private void CountBytes(TransferMeter meter, bool sent, int count)
+    {
+        meter.Add(count);
+        if (sent)
+        {
+            Interlocked.Add(ref _bytesSent, count);
+        }
+        else
+        {
+            Interlocked.Add(ref _bytesReceived, count);
         }
     }
 
