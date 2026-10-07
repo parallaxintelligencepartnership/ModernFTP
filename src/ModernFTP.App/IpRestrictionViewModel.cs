@@ -24,7 +24,7 @@ public sealed class IpRestrictionViewModel
         var entry = text.Trim();
         if (!BanList.IsValidEntry(entry))
         {
-            return string.Format(CultureInfo.CurrentCulture, Strings.IpInvalidFormat, entry.Length == 0 ? "(empty)" : entry);
+            return string.Format(CultureInfo.CurrentCulture, Strings.IpInvalidFormat, entry.Length == 0 ? Strings.IpEmptyEntry : entry);
         }
 
         if (Entries.Contains(entry, StringComparer.OrdinalIgnoreCase))

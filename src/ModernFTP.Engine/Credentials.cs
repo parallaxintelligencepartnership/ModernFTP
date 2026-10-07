@@ -30,6 +30,9 @@ public sealed class Pbkdf2Credential : PasswordCredential
         Iterations = iterations;
     }
 
+    /// <summary>Fixed credential verified when the user name is unknown or disabled (no password ever matches).</summary>
+    internal static Pbkdf2Credential Dummy { get; } = new(new byte[HashSize], new byte[SaltSize], DefaultIterations);
+
     public byte[] Hash { get; }
 
     public byte[] Salt { get; }

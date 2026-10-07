@@ -162,6 +162,10 @@ public sealed class FtpServer : IAsyncDisposable
             o.TlsHandshakeTimeout = next.TlsHandshakeTimeout;
             o.FailedLoginDelay = next.FailedLoginDelay;
             o.MaxFailedLogins = next.MaxFailedLogins;
+            o.LoginFailureLimit = next.LoginFailureLimit;
+            o.LoginFailureWindow = next.LoginFailureWindow;
+            o.LoginBanDuration = next.LoginBanDuration;
+            o.LoginThrottleDelay = next.LoginThrottleDelay;
             o.WelcomeMessage = next.WelcomeMessage;
             o.GoodbyeMessage = next.GoodbyeMessage;
             o.HideServerName = next.HideServerName;
@@ -261,6 +265,19 @@ public sealed class FtpServer : IAsyncDisposable
         }
 
         _listener = socket;
+        foreach (var user in Options.Users)
+        {
+            if (user.Enabled && !Directory.Exists(user.HomeDirectory))
+            {
+                Publish(new ErrorEvent
+                {
+                    SessionId = 0,
+                    UserName = user.UserName,
+                    Message = $"warning: home directory for '{user.UserName}' does not exist ({user.HomeDirectory}); the user cannot log in until it does",
+                });
+            }
+        }
+
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _acceptLoop = AcceptLoopAsync(socket, _cts.Token);
         return Task.CompletedTask;
@@ -327,6 +344,8 @@ public sealed class FtpServer : IAsyncDisposable
             Interlocked.Add(ref _totalBytesReceived, count);
         }
     }
+
+    internal LoginThrottle LoginThrottle { get; } = new();
 
     internal FtpUser? FindUser(string name) => _users.GetValueOrDefault(name);
 
@@ -458,6 +477,11 @@ public sealed class FtpServer : IAsyncDisposable
         if (Options.BanList.IsBanned(address))
         {
             rejection = "banned address";
+            rejectionReply = "421 Access denied.\r\n";
+        }
+        else if (LoginThrottle.IsBanned(address))
+        {
+            rejection = "address temporarily banned after failed logins";
             rejectionReply = "421 Access denied.\r\n";
         }
         else

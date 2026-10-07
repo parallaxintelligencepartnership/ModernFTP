@@ -59,6 +59,17 @@ public partial class MainWindow : Window
 
     public ServerHost Host => _host;
 
+    /// <summary>
+    /// Pays the first-render cost before any engine event arrives: one log line through the normal append
+    /// path, one drain tick and one layout pass. Call after the window is shown, before the server starts.
+    /// </summary>
+    public void WarmUp()
+    {
+        AppendLine([new LogSegment(Strings.LogReady, LogTag.Text)]);
+        _host.FlushEvents();
+        UpdateLayout();
+    }
+
     /// <summary>True when launch settings ask for the window to stay hidden in the tray.</summary>
     public bool StartHidden => _tray is not null && _settings.StartMinimizedToTray;
 
@@ -353,13 +364,22 @@ public partial class MainWindow : Window
             Report(banned, string.Format(CultureInfo.CurrentCulture, Strings.BannedFormat, row.Ip));
             if (banned)
             {
-                _host.Controller.Disconnect(row.Id);
+                DisconnectAddress(row);
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {
-            _host.Controller.Disconnect(row.Id);
+            DisconnectAddress(row);
             MessageText.Text = string.Format(CultureInfo.CurrentCulture, Strings.BanSaveFailedFormat, row.Ip, ex.Message);
+        }
+    }
+
+    /// <summary>Disconnects the selected session and every other session from the same address.</summary>
+    private void DisconnectAddress(SessionRow selected)
+    {
+        foreach (var id in _users.Rows.Where(r => r.Ip == selected.Ip).Select(r => r.Id).Append(selected.Id).Distinct().ToList())
+        {
+            _host.Controller.Disconnect(id);
         }
     }
 

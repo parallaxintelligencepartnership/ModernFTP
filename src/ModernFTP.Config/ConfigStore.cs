@@ -77,13 +77,7 @@ public sealed class ConfigStore(string path)
         : entry.EndsWith("/128", StringComparison.Ordinal) && entry.Contains(':', StringComparison.Ordinal) ? entry[..^4]
         : entry;
 
-    private void Write(ModernFtpConfig config)
-    {
-        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
-        var temporary = Path + ".tmp";
-        File.WriteAllText(temporary, System.Text.Json.JsonSerializer.Serialize(config, ConfigLoader.JsonOptions));
-        File.Move(temporary, Path, overwrite: true);
-    }
+    private void Write(ModernFtpConfig config) => ConfigLoader.Save(config, Path);
 
     private sealed class Subscription(Action dispose) : IDisposable
     {

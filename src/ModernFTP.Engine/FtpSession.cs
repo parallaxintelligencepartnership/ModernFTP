@@ -49,6 +49,7 @@ internal sealed partial class FtpSession
     private IDataChannel? _dataChannel;
     private Task? _transfer;
     private CancellationTokenSource? _transferCts;
+    private static readonly TimeSpan DisconnectReplyTimeout = TimeSpan.FromSeconds(1);
     private volatile bool _transferAborted;
     private TransferMeter? _meter;
     private long _bytesSent;
@@ -108,7 +109,15 @@ internal sealed partial class FtpSession
     public async Task DisconnectAsync(string reason, string message)
     {
         _closeReason = reason;
-        await TryReplyAsync(421, message).ConfigureAwait(false);
+        try
+        {
+            // A client that stopped reading must not hold the operator up: the socket is closed either way.
+            await TryReplyAsync(421, message).WaitAsync(DisconnectReplyTimeout).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+        }
+
         try
         {
             await _cts.CancelAsync().ConfigureAwait(false);
@@ -132,7 +141,6 @@ internal sealed partial class FtpSession
             return false;
         }
 
-        _transferAborted = true;
         meter.AbortFromServer();
         return true;
     }
@@ -395,6 +403,12 @@ internal sealed partial class FtpSession
         _renameSource = _renameFrom;
         _renameFrom = null;
 
+        // A REST offset belongs to the next command only, and only RETR, STOR and APPE use it.
+        if (verb is not ("RETR" or "STOR" or "APPE"))
+        {
+            _restartOffset = 0;
+        }
+
         if (!_commands.TryGetValue(verb, out var spec))
         {
             await ReplyAsync(500, "Command not understood.").ConfigureAwait(false);
@@ -615,7 +629,7 @@ internal sealed partial class FtpSession
             code = 226;
             reply = "Transfer complete.";
         }
-        catch (Exception) when (_transferAborted)
+        catch (Exception) when (_transferAborted || meter.AbortedByServer)
         {
             code = 426;
             reply = "Connection closed; transfer aborted.";

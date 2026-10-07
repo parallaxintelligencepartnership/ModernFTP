@@ -53,11 +53,12 @@ public sealed class ServerHost
             return null;
         }
 
+        FtpServer? server = null;
         try
         {
             var config = LoadConfig();
             var options = ConfigLoader.ToServerOptions(config, Path.GetDirectoryName(ConfigPath)!);
-            var server = new FtpServer(options);
+            server = new FtpServer(options);
             _subscription = _events.Attach(server);
             _server = server;
             await server.StartAsync();
@@ -68,6 +69,12 @@ public sealed class ServerHost
             _subscription?.Dispose();
             _subscription = null;
             _server = null;
+            if (server is not null)
+            {
+                // A failed start must not leave the server's event dispatcher task waiting forever.
+                await server.DisposeAsync();
+            }
+
             return ex.Message;
         }
 
@@ -103,6 +110,9 @@ public sealed class ServerHost
             ? server.ApplyConfig(config, Path.GetDirectoryName(ConfigPath)!)
             : null;
     }
+
+    /// <summary>Runs one event drain now; the window uses it to pay first-use costs before the server starts.</summary>
+    public void FlushEvents() => _events.Flush();
 
     /// <summary>Stops the event timer; call when the window that owns this host closes.</summary>
     public void DisposeEvents() => _events.Dispose();

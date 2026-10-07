@@ -30,6 +30,16 @@ public sealed class ModernFtpConfig
     /// <summary>Connections from one address that have not logged in yet. 0 means unlimited.</summary>
     public int MaxUnauthenticatedPerIp { get; set; } = 5;
 
+    /// <summary>
+    /// Failed logins from one address inside loginFailureWindowMinutes before each further PASS from it waits
+    /// 2 seconds; twice this many ban the address for loginBanMinutes (until restart at the latest). 0 disables.
+    /// </summary>
+    public int LoginFailureLimit { get; set; } = 5;
+
+    public int LoginFailureWindowMinutes { get; set; } = 10;
+
+    public int LoginBanMinutes { get; set; } = 15;
+
     public string WelcomeMessage { get; set; } = "Welcome to ModernFTP.";
 
     public string GoodbyeMessage { get; set; } = "Goodbye.";

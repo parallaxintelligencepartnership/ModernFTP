@@ -44,6 +44,19 @@ public sealed class FtpServerOptions
     /// <summary>The session is closed with 421 after this many failed logins. 0 disables.</summary>
     public int MaxFailedLogins { get; set; } = 3;
 
+    /// <summary>
+    /// Failed logins from one address within <see cref="LoginFailureWindow"/> before each further PASS from it is
+    /// delayed by <see cref="LoginThrottleDelay"/>. Twice this many failures ban the address for
+    /// <see cref="LoginBanDuration"/> (runtime only). 0 disables the throttle.
+    /// </summary>
+    public int LoginFailureLimit { get; set; } = 5;
+
+    public TimeSpan LoginFailureWindow { get; set; } = TimeSpan.FromMinutes(10);
+
+    public TimeSpan LoginBanDuration { get; set; } = TimeSpan.FromMinutes(15);
+
+    public TimeSpan LoginThrottleDelay { get; set; } = TimeSpan.FromSeconds(2);
+
     public string WelcomeMessage { get; set; } = "Welcome to ModernFTP.";
 
     public string GoodbyeMessage { get; set; } = "Goodbye.";

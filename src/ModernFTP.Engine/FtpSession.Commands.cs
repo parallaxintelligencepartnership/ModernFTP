@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Text;
 
 namespace ModernFTP.Engine;
@@ -98,10 +99,41 @@ internal sealed partial class FtpSession
         }
 
         _pendingUser = null;
+        var throttle = _server.LoginThrottle;
+        if (throttle.IsBanned(RemoteAddress))
+        {
+            _closeReason = "address temporarily banned after failed logins";
+            await ReplyAsync(421, "Too many failed login attempts, try again later.").ConfigureAwait(false);
+            return false;
+        }
+
+        if (_options.LoginFailureLimit > 0
+            && _options.LoginThrottleDelay > TimeSpan.Zero
+            && throttle.RecentFailures(RemoteAddress, _options.LoginFailureWindow) >= _options.LoginFailureLimit)
+        {
+            await Task.Delay(_options.LoginThrottleDelay, _cts.Token).ConfigureAwait(false);
+        }
+
         var user = _server.FindUser(name);
-        var valid = user is { Enabled: true } && user.Credential.Verify(argument);
+        bool valid;
+        if (user is { Enabled: true })
+        {
+            valid = user.Credential.Verify(argument);
+        }
+        else
+        {
+            // Same PBKDF2 work for unknown and disabled names, so the time does not reveal which names exist.
+            Pbkdf2Credential.Dummy.Verify(argument);
+            valid = false;
+        }
+
         if (!valid || user is null)
         {
+            if (throttle.RecordFailure(RemoteAddress, _options))
+            {
+                PublishError($"address {RemoteAddress} banned for {_options.LoginBanDuration.TotalMinutes:0.#} minutes after failed logins");
+            }
+
             _failedLogins++;
             PublishError($"failed login for '{Sanitize(name)}'");
             if (_options.FailedLoginDelay > TimeSpan.Zero)
@@ -256,7 +288,18 @@ internal sealed partial class FtpSession
 
         await ReplyAsync(234, $"AUTH {mechanism} successful.").ConfigureAwait(false);
         _reader.Reset();
-        _control = await AuthenticateTlsAsync(_network, _cts.Token).ConfigureAwait(false);
+        try
+        {
+            _control = await AuthenticateTlsAsync(_network, _cts.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is AuthenticationException or OperationCanceledException && !_cts.IsCancellationRequested)
+        {
+            // The failed SslStream is disposed, so nothing can be written back; end the session with the real reason.
+            _closeReason = "TLS negotiation failed";
+            PublishError($"TLS negotiation failed: {ex.Message}");
+            return false;
+        }
+
         _tls = true;
         _pendingUser = null;
         return true;
@@ -554,7 +597,7 @@ internal sealed partial class FtpSession
         return await StartTransferAsync(
             TransferDirection.Download,
             path,
-            (data, token) => CopyAsync(file, rate > 0 ? new ThrottledStream(data, rate) : data, token),
+            (data, token) => CopyAsync(file, rate > 0 ? new ThrottledStream(data, rate, Touch) : data, token),
             file,
             file.Length - offset).ConfigureAwait(false);
     }

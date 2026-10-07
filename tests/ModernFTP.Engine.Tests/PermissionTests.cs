@@ -59,8 +59,8 @@ public class PermissionTests
         var target = Path.Combine(server.Home, "precious.txt");
         await File.WriteAllTextAsync(target, new string('P', 10_000));
         await using var client = await server.ConnectAsync();
-        Assert.Equal(350, (await client.SendAsync("REST 1")).Code);
         using var data = await client.OpenPassiveAsync();
+        Assert.Equal(350, (await client.SendAsync("REST 1")).Code);
         Assert.Equal(550, (await client.SendAsync("STOR precious.txt")).Code);
         Assert.Equal(10_000, new FileInfo(target).Length);
     }
@@ -80,9 +80,9 @@ public class PermissionTests
         Assert.False(File.Exists(Path.Combine(server.Home, "missing.txt")));
 
         // A resume inside the file still works for a user with Delete.
-        Assert.Equal(350, (await client.SendAsync("REST 3")).Code);
         using (var data = await client.OpenPassiveAsync())
         {
+            Assert.Equal(350, (await client.SendAsync("REST 3")).Code);
             Assert.Equal(150, (await client.SendAsync("STOR short.txt")).Code);
             await data.GetStream().WriteAsync("abc"u8.ToArray());
         }

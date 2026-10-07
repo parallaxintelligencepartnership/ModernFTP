@@ -63,7 +63,7 @@ public class EventBatcherTests(ITestOutputHelper output)
     /// <summary>
     /// The review's probe: one client that never logs in pipelines NOOP as fast as it can. Over 5 seconds, 20
     /// probes measure how long an input priority operation waits for the window thread; the median must stay
-    /// under 250 ms and managed memory must stay flat. Each stage of a tick is timed and printed.
+    /// under 250 ms (the maximum is logged, not asserted) and managed memory must stay flat. Each stage of a tick is timed and printed.
     /// </summary>
     [Fact]
     public void ANoopFloodFromAClientThatNeverLogsInKeepsTheWindowResponsive()
@@ -102,6 +102,12 @@ public class EventBatcherTests(ITestOutputHelper output)
                 stages.Add(batcherRef!.LastDrain, format, log.LastUpdate, log.LastScroll, watch.Elapsed);
             });
             batcherRef = batcher;
+
+            // Same warm-up as MainWindow.WarmUp: one drain tick with a line and one layout pass before the
+            // engine starts, so first-render cost is not charged to the first flood probe.
+            batcher.Post(new ErrorEvent { SessionId = 0, Message = "warm up" });
+            batcher.Flush();
+            window.UpdateLayout();
 
             await using var server = new FtpServer(new FtpServerOptions { ListenAddress = IPAddress.Loopback, Port = 0, LoginTimeout = TimeSpan.FromMinutes(1) });
             await server.StartAsync();

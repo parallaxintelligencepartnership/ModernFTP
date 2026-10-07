@@ -14,8 +14,12 @@ internal sealed class ThrottledStream : Stream
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private long _written;
 
-    public ThrottledStream(Stream inner, long bytesPerSecond)
+    private readonly Action? _onChunk;
+
+    /// <param name="onChunk">Called after each chunk is written, so a slow but live transfer counts as activity.</param>
+    public ThrottledStream(Stream inner, long bytesPerSecond, Action? onChunk = null)
     {
+        _onChunk = onChunk;
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentOutOfRangeException.ThrowIfLessThan(bytesPerSecond, 1);
         _inner = inner;
@@ -46,6 +50,7 @@ internal sealed class ThrottledStream : Stream
             await _inner.WriteAsync(chunk, cancellationToken).ConfigureAwait(false);
             buffer = buffer[chunk.Length..];
             _written += chunk.Length;
+            _onChunk?.Invoke();
             var delay = TimeSpan.FromSeconds(_written / (double)_bytesPerSecond) - _clock.Elapsed;
             if (delay > TimeSpan.Zero)
             {

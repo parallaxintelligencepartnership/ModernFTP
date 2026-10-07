@@ -49,14 +49,18 @@ public class CveRegressionTests
             Assert.True(reply.Code is 425 or 550, reply.Text);
         }
 
-        // Repeated real downloads on the same session also work.
-        for (var i = 0; i < 5; i++)
+        // The flood again with a real data channel for each burst: the RETR that has a channel transfers the
+        // whole file, the RETRs pipelined behind it wait for it and are answered in order.
+        for (var i = 0; i < 100; i++)
         {
             using var data = await client.OpenPassiveAsync();
-            Assert.Equal(150, (await client.SendAsync("RETR f.txt")).Code);
+            await client.WriteAsync("RETR f.txt\r\nRETR missing.txt\r\nRETR f.txt\r\n");
             using var reader = new StreamReader(data.GetStream());
             Assert.Equal("data", await reader.ReadToEndAsync());
+            Assert.Equal(150, (await client.ReadReplyAsync()).Code);
             Assert.Equal(226, (await client.ReadReplyAsync()).Code);
+            Assert.Equal(550, (await client.ReadReplyAsync()).Code);
+            Assert.Equal(425, (await client.ReadReplyAsync()).Code);
         }
 
         Assert.Equal(200, (await client.SendAsync("NOOP")).Code);
@@ -147,6 +151,27 @@ public class CveRegressionTests
         await using var client = await server.ConnectAsync();
         foreach (var verb in new[] { "CWD", "NLST", "SIZE" })
         {
+            // Arguments under the 2048 character input cap, so the segment length and depth caps do the work, with
+            // the pathological content of the exploit: long runs of slashes, dot dot, percent and wildcard characters.
+            foreach (var argument in new[]
+            {
+                new string('A', 2000),
+                new string('/', 2000),
+                string.Concat(Enumerable.Repeat("../", 600)),
+                string.Concat(Enumerable.Repeat("a/", 1000)),
+                string.Concat(Enumerable.Repeat("..%/", 500)),
+                new string('%', 2000),
+                new string('*', 2000),
+                string.Concat(Enumerable.Repeat("*/..", 500)),
+                new string('A', 255) + new string('/', 1700),
+            })
+            {
+                Assert.True(argument.Length < VirtualPath.MaxInputLength, argument[..10]);
+                var reply = await client.SendAsync($"{verb} {argument}");
+                Assert.True(reply.Code is 550 or 250 or 213 or 425, $"{verb}: {reply.Text}");
+            }
+
+            // The same over the input cap.
             foreach (var argument in new[] { new string('A', 3000), string.Concat(Enumerable.Repeat("../", 1000)), new string('%', 3000) })
             {
                 var reply = await client.SendAsync($"{verb} {argument}");

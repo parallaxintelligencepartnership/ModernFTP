@@ -78,7 +78,8 @@ internal static class Program
             System.Console.Error.WriteLine($"Port {ex.Port} is already in use");
             return 3;
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or System.Text.Json.JsonException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or System.Text.Json.JsonException or UnauthorizedAccessException
+            or System.Security.Cryptography.CryptographicException or System.Net.Sockets.SocketException)
         {
             System.Console.Error.WriteLine($"Error: {ex.Message}");
             return 2;

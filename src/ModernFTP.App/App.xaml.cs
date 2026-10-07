@@ -23,6 +23,7 @@ public partial class App : Application
             window.Show();
         }
 
+        window.WarmUp();
         if (window.StartServerOnLaunch)
         {
             await window.StartServerOnLaunchAsync();

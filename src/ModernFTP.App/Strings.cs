@@ -50,6 +50,8 @@ public static class Strings
     public const string StartFailedTitle = "The server could not start";
     public const string ServerStartedFormat = "Server started on {0}.";
     public const string ServerStopped = "Server stopped.";
+    public const string LogReady = "ModernFTP is ready.";
+    public const string IpEmptyEntry = "(empty)";
     public const string EventsDroppedFormat = "{0} events dropped";
     public const string SettingsApplied = "Saved settings applied to the running server.";
     public const string RestartNeededFormat = "{0} Not applied yet: {1}.";
