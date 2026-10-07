@@ -9,16 +9,16 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
     <Window.Resources>
-        <Style TargetType="TextBox">
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Margin" Value="0,3" />
         </Style>
-        <Style TargetType="Label">
+        <Style TargetType="Label" BasedOn="{StaticResource {x:Type Label}}">
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="0,3,12,3" />
         </Style>
-        <Style TargetType="GroupBox">
+        <Style TargetType="GroupBox" BasedOn="{StaticResource {x:Type GroupBox}}">
             <Setter Property="Margin" Value="0,0,0,10" />
             <Setter Property="Padding" Value="8,4" />
         </Style>
