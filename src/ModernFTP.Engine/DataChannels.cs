@@ -16,47 +16,68 @@ internal static class NetUtil
         address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
 }
 
-/// <summary>Hands out passive listeners from the configured port range, rotating the start point.</summary>
+/// <summary>
+/// Hands out passive listeners from the configured port range, rotating the start point. A port is
+/// leased only by binding its listener exclusively inside the pool lock, and it goes back to the pool
+/// only when that listener is disposed, so two live sessions can never share a passive port.
+/// </summary>
 internal sealed class PassivePortPool(int minPort, int maxPort)
 {
     private readonly int _count = maxPort - minPort + 1;
+    private readonly object _gate = new();
+    private readonly HashSet<int> _leased = [];
     private int _cursor = -1;
 
     public PassiveDataChannel? TryOpen(IPAddress bindAddress, IPAddress expectedRemote)
     {
         bindAddress = NetUtil.Normalize(bindAddress);
-        var start = (int)((uint)Interlocked.Increment(ref _cursor) % (uint)_count);
-        for (var i = 0; i < _count; i++)
+        lock (_gate)
         {
-            var port = minPort + ((start + i) % _count);
-            var socket = new Socket(bindAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            try
+            _cursor = (_cursor + 1) % _count;
+            for (var i = 0; i < _count; i++)
             {
-                if (!OperatingSystem.IsWindows())
+                var port = minPort + ((_cursor + i) % _count);
+                if (_leased.Contains(port))
                 {
-                    // Lets a port in TIME_WAIT from the previous transfer be reused right away.
-                    socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    continue;
                 }
 
-                // Windows: leave the default sharing mode. SO_EXCLUSIVEADDRUSE would block rebinding a
-                // port while old connections on it sit in TIME_WAIT, starving a small passive range.
+                var socket = new Socket(bindAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                try
+                {
+                    // No ReuseAddress: on Unix it also sets SO_REUSEPORT, which lets a second listener
+                    // bind a port that is already in use and steal its data connection.
+                    socket.ExclusiveAddressUse = true;
+                    socket.Bind(new IPEndPoint(bindAddress, port));
+                    socket.Listen(1);
+                }
+                catch (SocketException)
+                {
+                    socket.Dispose();
+                    continue;
+                }
 
-                socket.Bind(new IPEndPoint(bindAddress, port));
-                socket.Listen(1);
-                return new PassiveDataChannel(socket, port, expectedRemote);
-            }
-            catch (SocketException)
-            {
-                socket.Dispose();
+                _leased.Add(port);
+                return new PassiveDataChannel(socket, port, expectedRemote, this);
             }
         }
 
         return null;
     }
+
+    internal void Release(int port)
+    {
+        lock (_gate)
+        {
+            _leased.Remove(port);
+        }
+    }
 }
 
-internal sealed class PassiveDataChannel(Socket listener, int port, IPAddress expectedRemote) : IDataChannel
+internal sealed class PassiveDataChannel(Socket listener, int port, IPAddress expectedRemote, PassivePortPool pool) : IDataChannel
 {
+    private int _closed;
+
     public int Port => port;
 
     public async Task<DataConnection> OpenAsync(TimeSpan timeout, CancellationToken cancellationToken)
@@ -76,7 +97,7 @@ internal sealed class PassiveDataChannel(Socket listener, int port, IPAddress ex
                     continue;
                 }
 
-                listener.Dispose();
+                CloseListener();
                 return new DataConnection(new NetworkStream(socket, ownsSocket: true), port);
             }
         }
@@ -86,7 +107,17 @@ internal sealed class PassiveDataChannel(Socket listener, int port, IPAddress ex
         }
     }
 
-    public void Dispose() => listener.Dispose();
+    public void Dispose() => CloseListener();
+
+    /// <summary>Disposes the listener and only then returns its port to the pool.</summary>
+    private void CloseListener()
+    {
+        if (Interlocked.Exchange(ref _closed, 1) == 0)
+        {
+            listener.Dispose();
+            pool.Release(port);
+        }
+    }
 }
 
 internal sealed class ActiveDataChannel(IPEndPoint target) : IDataChannel
