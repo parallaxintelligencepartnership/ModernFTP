@@ -1,0 +1,123 @@
+name: windows
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore (locked)
+        run: dotnet restore ModernFTP.sln --locked-mode
+
+      - name: Build (including the WPF app)
+        run: dotnet build ModernFTP.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test ModernFTP.sln -c Release --no-build
+
+      - name: Publish win-x64 single file (framework dependent)
+        shell: pwsh
+        run: |
+          dotnet publish src/ModernFTP.Host.Console/ModernFTP.Host.Console.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:RestoreLockedMode=true -o publish/console
+          dotnet publish src/ModernFTP.App/ModernFTP.App.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:RestoreLockedMode=true -o publish/app
+          Get-ChildItem publish -Recurse -File | ForEach-Object { "{0,-50} {1,12:N0} bytes" -f $_.FullName.Substring((Resolve-Path publish).Path.Length + 1), $_.Length }
+
+      - name: Smoke test the console host with curl
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'smoke'
+          $ftpHome = Join-Path $root 'home'
+          $config = Join-Path $root 'config.json'
+          $log = Join-Path $root 'server.log'
+          $errLog = Join-Path $root 'server.err.log'
+          New-Item -ItemType Directory -Force -Path $ftpHome | Out-Null
+          $exe = Resolve-Path 'publish/console/modernftp.exe'
+
+          # Throwaway credential generated per run and stored only as a PBKDF2 hash.
+          $password = [guid]::NewGuid().ToString('N')
+          $hashLines = $password | & $exe hash-password
+          if ($LASTEXITCODE -ne 0) { throw "hash-password failed" }
+          $hash = @{}
+          foreach ($line in $hashLines) {
+            if ($line -match '"(\w+)":\s*"?([^",]+)"?') { $hash[$Matches[1]] = $Matches[2] }
+          }
+
+          @{
+            listenAddress = '127.0.0.1'
+            port = 2121
+            passivePortMin = 50000
+            passivePortMax = 50010
+            users = @(@{
+              username = 'smoke'
+              passwordHash = $hash['passwordHash']
+              passwordSalt = $hash['passwordSalt']
+              passwordIterations = [int]$hash['passwordIterations']
+              homeDirectory = $ftpHome
+              permissions = @{ upload = $true; delete = $true }
+            })
+          } | ConvertTo-Json -Depth 5 | Set-Content -Path $config -Encoding utf8
+
+          & $exe check-config --config $config
+          if ($LASTEXITCODE -ne 0) { throw "check-config failed" }
+
+          $proc = Start-Process -FilePath $exe -ArgumentList @('serve', '--config', $config) -PassThru -NoNewWindow -RedirectStandardOutput $log -RedirectStandardError $errLog
+          try {
+            $deadline = (Get-Date).AddSeconds(30)
+            $up = $false
+            while (-not $up -and (Get-Date) -lt $deadline) {
+              try { $c = [System.Net.Sockets.TcpClient]::new('127.0.0.1', 2121); $c.Dispose(); $up = $true } catch { Start-Sleep -Milliseconds 250 }
+            }
+            if (-not $up) { throw "server did not start listening" }
+
+            $src = Join-Path $root 'source.bin'
+            $dst = Join-Path $root 'roundtrip.bin'
+            $bytes = [byte[]]::new(1048576)
+            [System.Random]::new(42).NextBytes($bytes)
+            [System.IO.File]::WriteAllBytes($src, $bytes)
+
+            curl.exe -sS --fail --user "smoke:$password" --upload-file $src ftp://127.0.0.1:2121/smoke.bin
+            if ($LASTEXITCODE -ne 0) { throw "upload failed with curl exit $LASTEXITCODE" }
+            curl.exe -sS --fail --user "smoke:$password" --output $dst ftp://127.0.0.1:2121/smoke.bin
+            if ($LASTEXITCODE -ne 0) { throw "download failed with curl exit $LASTEXITCODE" }
+
+            $a = (Get-FileHash $src).Hash
+            $b = (Get-FileHash $dst).Hash
+            if ($a -ne $b) { throw "round trip mismatch: $a vs $b" }
+            Write-Host "Round trip OK: 1 MB uploaded and downloaded, SHA256 $a"
+          }
+          finally {
+            if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+            Write-Host '--- server log (tail) ---'
+            Get-Content $log -Tail 20 -ErrorAction SilentlyContinue
+            Get-Content $errLog -Tail 20 -ErrorAction SilentlyContinue
+          }
+
+      - name: Upload console host
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: modernftp-console-win-x64
+          path: publish/console
+
+      - name: Upload WPF app
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: modernftp-app-win-x64
+          path: publish/app

@@ -1,0 +1,32 @@
+kind: pipeline
+type: docker
+name: linux
+
+environment:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_PACKAGES: /drone/src/.nuget/packages
+
+steps:
+  - name: restore
+    image: mcr.microsoft.com/dotnet/sdk:10.0.401
+    commands:
+      - dotnet restore src/ModernFTP.Engine/ModernFTP.Engine.csproj --locked-mode
+      - dotnet restore src/ModernFTP.Config/ModernFTP.Config.csproj --locked-mode
+      - dotnet restore src/ModernFTP.Host.Console/ModernFTP.Host.Console.csproj --locked-mode
+      - dotnet restore tests/ModernFTP.Engine.Tests/ModernFTP.Engine.Tests.csproj --locked-mode
+      - dotnet restore tests/ModernFTP.Conformance/ModernFTP.Conformance.csproj --locked-mode
+
+  - name: build
+    image: mcr.microsoft.com/dotnet/sdk:10.0.401
+    commands:
+      - dotnet build src/ModernFTP.Host.Console/ModernFTP.Host.Console.csproj -c Release --no-restore
+      - dotnet build tests/ModernFTP.Engine.Tests/ModernFTP.Engine.Tests.csproj -c Release --no-restore
+      - dotnet build tests/ModernFTP.Conformance/ModernFTP.Conformance.csproj -c Release --no-restore
+
+  - name: test
+    image: mcr.microsoft.com/dotnet/sdk:10.0.401
+    commands:
+      - curl --version | head -n 1
+      - dotnet test tests/ModernFTP.Engine.Tests/ModernFTP.Engine.Tests.csproj -c Release --no-build
+      - dotnet test tests/ModernFTP.Conformance/ModernFTP.Conformance.csproj -c Release --no-build
