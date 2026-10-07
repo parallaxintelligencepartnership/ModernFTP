@@ -66,8 +66,20 @@ public static class CaptureRunner
         var width = (int)Math.Ceiling(root.ActualWidth * dpi.DpiScaleX);
         var height = (int)Math.Ceiling(root.ActualHeight * dpi.DpiScaleY);
 
+        // The system backdrop (Mica) is not part of the visual tree, so paint an opaque base first.
+        var dark = ThemeHelper.IsDark(window);
+        var baseBrush = window.TryFindResource("SolidBackgroundFillColorBaseBrush") as Brush
+            ?? new SolidColorBrush(dark ? Color.FromRgb(0x20, 0x20, 0x20) : Color.FromRgb(0xF3, 0xF3, 0xF3));
+        var bounds = new Rect(0, 0, root.ActualWidth, root.ActualHeight);
+        var surface = new DrawingVisual();
+        using (var dc = surface.RenderOpen())
+        {
+            dc.DrawRectangle(baseBrush, null, bounds);
+            dc.DrawRectangle(new VisualBrush(root) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null, bounds);
+        }
+
         var bitmap = new RenderTargetBitmap(width, height, 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
-        bitmap.Render(root);
+        bitmap.Render(surface);
 
         var file = string.Create(CultureInfo.InvariantCulture, $"{number:00}-{name}-{theme}.png");
         var encoder = new PngBitmapEncoder();

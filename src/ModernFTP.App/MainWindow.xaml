@@ -60,7 +60,7 @@
                              FontSize="12"
                              Margin="0,6,0,0">
                     <RichTextBox.Document>
-                        <FlowDocument PageWidth="5000" />
+                        <FlowDocument PageWidth="5000" FontFamily="Cascadia Mono, Consolas, Courier New" FontSize="12" />
                     </RichTextBox.Document>
                 </RichTextBox>
             </TabItem>
