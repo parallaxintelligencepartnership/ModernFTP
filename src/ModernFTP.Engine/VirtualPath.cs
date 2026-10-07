@@ -168,7 +168,49 @@ public sealed class VirtualPath : IEquatable<VirtualPath>
             throw new UnauthorizedAccessException("Path escapes the home directory.");
         }
 
+        // Symbolic links (and junctions) inside the home may point anywhere: follow every link in
+        // the chain and require the real target to stay inside the real home.
+        var realRoot = Path.TrimEndingDirectorySeparator(RealPath(root));
+        var realFull = RealPath(full);
+        var realPrefix = Path.EndsInDirectorySeparator(realRoot) ? realRoot : realRoot + Path.DirectorySeparatorChar;
+        if (!string.Equals(realFull, realRoot, PhysicalComparison) && !realFull.StartsWith(realPrefix, PhysicalComparison))
+        {
+            throw new UnauthorizedAccessException("Path leaves the home directory through a link.");
+        }
+
         return full;
+    }
+
+    /// <summary>
+    /// Resolves every symbolic link or junction along <paramref name="path"/>, component by component.
+    /// Components that do not exist are kept as written. Link loops surface as an IOException.
+    /// </summary>
+    internal static string RealPath(string path, int depth = 0)
+    {
+        if (depth > 32)
+        {
+            throw new IOException("Too many levels of links.");
+        }
+
+        var full = Path.GetFullPath(path);
+        var root = Path.GetPathRoot(full) ?? string.Empty;
+        var current = root;
+        var parts = full[root.Length..].Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            var next = Path.Join(current, part);
+            var info = new FileInfo(next);
+            if (info.LinkTarget is not null)
+            {
+                var target = info.ResolveLinkTarget(returnFinalTarget: true);
+                next = target is null ? next : RealPath(target.FullName, depth + 1);
+            }
+
+            current = next;
+        }
+
+        return current;
     }
 
     public override string ToString() => IsRoot ? "/" : "/" + string.Join('/', _segments);
