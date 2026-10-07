@@ -9,6 +9,12 @@ public sealed class BanList
     private readonly object _gate = new();
     private readonly List<Entry> _entries = [];
 
+    /// <summary>
+    /// Raised after an entry is added or removed, outside the list's lock, on the thread that made the
+    /// change. Hosts use it to persist the list (see ModernFTP.Config's ConfigStore).
+    /// </summary>
+    public event EventHandler? Changed;
+
     public IReadOnlyList<string> Entries
     {
         get
@@ -28,12 +34,19 @@ public sealed class BanList
             throw new FormatException($"'{entry}' is not an IP address or CIDR range.");
         }
 
+        bool added;
         lock (_gate)
         {
-            if (!_entries.Any(e => e.Text == parsed.Text))
+            added = !_entries.Any(e => e.Text == parsed.Text);
+            if (added)
             {
                 _entries.Add(parsed);
             }
+        }
+
+        if (added)
+        {
+            Changed?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -46,10 +59,18 @@ public sealed class BanList
             return false;
         }
 
+        bool removed;
         lock (_gate)
         {
-            return _entries.RemoveAll(e => e.Text == parsed.Text) > 0;
+            removed = _entries.RemoveAll(e => e.Text == parsed.Text) > 0;
         }
+
+        if (removed)
+        {
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+
+        return removed;
     }
 
     public bool IsBanned(IPAddress address)
