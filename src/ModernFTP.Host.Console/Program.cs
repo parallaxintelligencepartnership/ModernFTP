@@ -64,6 +64,11 @@ internal static class Program
                 _ => UnknownCommand(args[0]),
             };
         }
+        catch (PortInUseException ex)
+        {
+            System.Console.Error.WriteLine($"Port {ex.Port} is already in use");
+            return 3;
+        }
         catch (Exception ex) when (ex is IOException or InvalidDataException or System.Text.Json.JsonException or UnauthorizedAccessException)
         {
             System.Console.Error.WriteLine($"Error: {ex.Message}");

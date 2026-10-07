@@ -96,13 +96,16 @@ public sealed class FtpServer : IAsyncDisposable
                 socket.DualMode = true;
             }
 
-            if (!OperatingSystem.IsWindows())
-            {
-                socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            }
-
+            // No ReuseAddress: on Unix it also sets SO_REUSEPORT, which let a second instance listen on
+            // the same port and take part of the connections. A port already in use must fail here.
+            socket.ExclusiveAddressUse = true;
             socket.Bind(endpoint);
             socket.Listen(512);
+        }
+        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
+        {
+            socket.Dispose();
+            throw new PortInUseException(endpoint.Port, ex);
         }
         catch
         {
@@ -368,4 +371,11 @@ public sealed class FtpServer : IAsyncDisposable
     }
 
     private sealed record SessionEntry(FtpSession Session, Task Task);
+}
+
+/// <summary>The control port is already taken, usually by another running server.</summary>
+public sealed class PortInUseException(int port, Exception innerException)
+    : IOException($"Port {port} is already in use.", innerException)
+{
+    public int Port { get; } = port;
 }
