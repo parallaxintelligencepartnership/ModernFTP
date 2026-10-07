@@ -35,7 +35,7 @@ public class SessionApiTests
     }
 
     [Fact]
-    public async Task AbortDuringASlowRetrRepliesWith426Then226AndTheSessionGoesOn()
+    public async Task ServerAbortDuringASlowRetrRepliesWith426OnlyAndTheSessionGoesOn()
     {
         await using var server = await TestServer.StartAsync(downloadRateKBps: 16);
         await File.WriteAllBytesAsync(Path.Combine(server.Home, "slow.bin"), new byte[1024 * 1024]);
@@ -53,9 +53,25 @@ public class SessionApiTests
 
         Assert.True(server.Server.AbortTransfer(session.Id));
         Assert.Equal(426, (await client.ReadReplyAsync()).Code);
-        Assert.Equal(226, (await client.ReadReplyAsync()).Code);
         Assert.Equal(200, (await client.SendAsync("NOOP")).Code);
         Assert.Null((await WaitForAsync(server, s => s.CurrentTransfer is null)).CurrentTransfer);
+    }
+
+    [Fact]
+    public async Task AfterAServerAbortTheNextCommandGetsExactlyOneReply()
+    {
+        await using var server = await TestServer.StartAsync(downloadRateKBps: 16);
+        await File.WriteAllBytesAsync(Path.Combine(server.Home, "slow.bin"), new byte[1024 * 1024]);
+        await using var client = await server.ConnectAsync();
+        var session = await WaitForAsync(server, s => s.User is not null);
+        using var data = await client.OpenPassiveAsync();
+        Assert.Equal(150, (await client.SendAsync("RETR slow.bin")).Code);
+        await WaitForAsync(server, s => s.CurrentTransfer is { BytesDone: > 0 });
+        Assert.True(server.Server.AbortTransfer(session.Id));
+        Assert.Equal(426, (await client.ReadReplyAsync()).Code);
+
+        Assert.Equal(200, (await client.SendAsync("NOOP")).Code);
+        Assert.Equal(257, (await client.SendAsync("PWD")).Code);
     }
 
     [Fact]

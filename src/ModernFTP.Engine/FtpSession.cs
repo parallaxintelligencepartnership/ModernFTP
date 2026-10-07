@@ -113,8 +113,8 @@ internal sealed partial class FtpSession
     }
 
     /// <summary>
-    /// Server operator abort of the running transfer. The transfer replies 426 and then 226, as if the
-    /// client had sent ABOR, and the session stays open. False when no transfer is running.
+    /// Server operator abort of the running transfer. The transfer replies 426 only (the client's own ABOR gets
+    /// 426 then 226), and the session stays open. False when no transfer is running.
     /// </summary>
     public bool AbortTransferFromServer()
     {
@@ -663,11 +663,6 @@ internal sealed partial class FtpSession
             await TryReplyAsync(code, reply).ConfigureAwait(false);
         }
 
-        if (code == 426 && meter.AbortedByServer)
-        {
-            // Completes the abort the way ABOR would, so the client sees 426 then 226 and can go on.
-            await TryReplyAsync(226, "Abort successful.").ConfigureAwait(false);
-        }
     }
 
     private void CountBytes(TransferMeter meter, bool sent, int count)

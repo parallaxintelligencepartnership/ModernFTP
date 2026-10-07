@@ -114,7 +114,7 @@ public sealed class FtpServer : IAsyncDisposable
     }
 
     /// <summary>
-    /// Cancels the session's running data transfer; the client gets 426 then 226 and the session stays
+    /// Cancels the session's running data transfer; the client gets 426 only and the session stays
     /// open. False when no such session is open or it has no transfer running.
     /// </summary>
     public bool AbortTransfer(long sessionId) =>
