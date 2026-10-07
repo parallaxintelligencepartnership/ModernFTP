@@ -130,8 +130,9 @@ public static class Strings
 
     // IP restriction window
     public const string IpTitle = "IP Restriction";
-    public const string IpListLabel = "_Banned addresses (one IP address or CIDR range each)";
+    public const string IpListLabel = "_Banned addresses";
     public const string IpEntryLabel = "IP address or _range";
+    public const string IpEntryHint = "One IP address or CIDR range per entry, for example 203.0.113.0/24.";
     public const string IpAdd = "_Add";
     public const string IpRemove = "_Remove";
     public const string IpInvalidFormat = "{0} is not an IP address or CIDR range.";

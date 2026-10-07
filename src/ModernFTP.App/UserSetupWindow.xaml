@@ -4,9 +4,9 @@
         xmlns:local="clr-namespace:ModernFTP.App"
         Title="{x:Static local:Strings.UserSetupTitle}"
         Width="780"
-        Height="520"
+        Height="620"
         MinWidth="700"
-        MinHeight="480"
+        MinHeight="560"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
     <Window.Resources>
@@ -79,7 +79,7 @@
                 <TabItem x:Name="DirectoryTab" Header="{x:Static local:Strings.UserTabDirectories}">
                     <DockPanel x:Name="DirectoryPanel" Margin="12">
                         <GroupBox DockPanel.Dock="Bottom" Header="{x:Static local:Strings.UserRights}" Margin="0,8,0,0" Padding="8,4">
-                            <UniformGrid Columns="4">
+                            <UniformGrid Columns="3">
                                 <CheckBox x:Name="RightDownload" Content="{x:Static local:Strings.RightDownload}" Click="OnRightClick" />
                                 <CheckBox x:Name="RightUpload" Content="{x:Static local:Strings.RightUpload}" Click="OnRightClick" />
                                 <CheckBox x:Name="RightDelete" Content="{x:Static local:Strings.RightDelete}" Click="OnRightClick" />

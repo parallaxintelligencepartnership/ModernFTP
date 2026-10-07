@@ -30,6 +30,7 @@
                 <TextBox x:Name="EntryBox" Margin="0,0,0,8" KeyDown="OnEntryKeyDown" />
                 <Button Content="{x:Static local:Strings.IpAdd}" Margin="0,0,0,6" Click="OnAdd" />
                 <Button x:Name="RemoveButton" Content="{x:Static local:Strings.IpRemove}" Click="OnRemove" />
+                <TextBlock Text="{x:Static local:Strings.IpEntryHint}" Opacity="0.7" TextWrapping="Wrap" Margin="0,14,0,0" />
             </StackPanel>
         </Grid>
     </DockPanel>
