@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Threading;
+using ModernFTP.Config;
 using ModernFTP.Engine;
 
 namespace ModernFTP.App;
@@ -265,6 +266,23 @@ public partial class MainWindow : Window
         try
         {
             new SetupWindow(_host.LoadConfig(), _settings, _host.ConfigPath) { Owner = this }.ShowDialog();
+        }
+        catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException)
+        {
+            MessageBox.Show(this, ex.Message, Strings.SetupSaveFailedTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void OnUsers(object sender, RoutedEventArgs e) =>
+        ShowConfigWindow(config => new UserSetupWindow(config, _host.ConfigPath));
+
+    private void ShowConfigWindow(Func<ModernFtpConfig, Window> create)
+    {
+        try
+        {
+            var window = create(_host.LoadConfig());
+            window.Owner = this;
+            window.ShowDialog();
         }
         catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException)
         {

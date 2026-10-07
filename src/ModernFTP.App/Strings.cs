@@ -13,6 +13,8 @@ public static class Strings
     public const string MenuStop = "S_top";
     public const string MenuSetup = "S_etup";
     public const string MenuFtpSetup = "_FTP Setup";
+    public const string MenuUsers = "_Users";
+    public const string MenuIpRestriction = "_IP restriction";
     public const string MenuTray = "_Tray";
     public const string MenuMinimizeToTray = "_Minimize to tray";
     public const string MenuHelp = "_Help";
@@ -76,6 +78,66 @@ public static class Strings
     public const string SetupNumberFormat = "{0} must be a whole number.";
     public const string SetupSaved = "Settings saved.";
 
+    // User setup window
+    public const string UserSetupTitle = "User Setup";
+    public const string UserList = "_List of users";
+    public const string UserNew = "_New";
+    public const string UserCopy = "C_opy";
+    public const string UserRename = "_Rename";
+    public const string UserDelete = "_Delete";
+    public const string UserPromptNewTitle = "New user";
+    public const string UserPromptCopyTitle = "Copy user";
+    public const string UserPromptRenameTitle = "Rename user";
+    public const string UserPromptLabel = "_Login name";
+    public const string UserNameEmpty = "The login name cannot be empty.";
+    public const string UserNameTaken = "A user with that name already exists.";
+    public const string UserTabMain = "Main";
+    public const string UserTabDirectories = "Directory access";
+    public const string UserTabIp = "IP";
+    public const string UserEnabled = "Account _enabled";
+    public const string UserPassword = "_Password";
+    public const string UserSetPassword = "Set pass_word";
+    public const string UserPasswordSet = "A password is set. It is stored only as a hash.";
+    public const string UserPasswordNone = "No password is set.";
+    public const string UserPasswordUpdated = "Password updated. Save to keep it.";
+    public const string UserPasswordEmpty = "Enter a password first.";
+    public const string UserMaxConnections = "Max. connections for this user";
+    public const string UserMaxPerIp = "Max. per IP address";
+    public const string UserIdleTimeout = "Idle timeout (seconds)";
+    public const string UserLimitsComing = "Per-user limits are coming";
+    public const string UserDownloadSpeed = "Download speed cap (KB/s)";
+    public const string UserDownloadSpeedHint = "0 means unlimited";
+    public const string UserDirectories = "_Directories";
+    public const string UserDirPath = "Pa_th";
+    public const string UserDirAlias = "A_lias";
+    public const string UserDirSubdirs = "Include s_ubdirectories";
+    public const string UserDirAdd = "_Add";
+    public const string UserDirEdit = "_Edit";
+    public const string UserDirRemove = "Re_move";
+    public const string UserDirPathEmpty = "Enter a directory path.";
+    public const string UserDirHomeAlias = "(home)";
+    public const string UserRights = "Rights for the selected directory";
+    public const string RightDownload = "Download";
+    public const string RightUpload = "Upload";
+    public const string RightDelete = "Delete";
+    public const string RightMakeDir = "Make directory";
+    public const string RightRemoveDir = "Remove directory";
+    public const string RightRename = "Rename";
+    public const string RightList = "List";
+    public const string UserIpComing = "Per-user IP rules are coming";
+    public const string UserNumberFormat = "{0} must be a whole number of 0 or more.";
+    public const string UserSavedRestartNote = "Changes apply the next time the server starts.";
+
+    // IP restriction window
+    public const string IpTitle = "IP Restriction";
+    public const string IpListLabel = "_Banned addresses (one IP address or CIDR range each)";
+    public const string IpEntryLabel = "IP address or _range";
+    public const string IpAdd = "_Add";
+    public const string IpRemove = "_Remove";
+    public const string IpInvalidFormat = "{0} is not an IP address or CIDR range.";
+    public const string IpDuplicateFormat = "{0} is already in the list.";
+    public const string IpAllowComing = "A global allow list is coming. Only banned addresses are supported now.";
+
     // About window
     public const string AboutTitle = "About ModernFTP";
     public const string AboutVersionFormat = "Version {0}";
@@ -97,6 +159,9 @@ public static class Strings
     // Sample data used by capture mode
     public const string CaptureLogPageDescription = "Main window, Log page, ten sample log lines.";
     public const string CaptureUsersPageDescription = "Main window, Users page, two sample sessions.";
-    public const string CaptureSetupDescription = "FTP Setup window with default values.";
+    public const string CaptureSetupDescription = "FTP Setup window with default values and the restart note under the Application group.";
+    public const string CaptureUserMainDescription = "User Setup window, Main tab, two sample users, per-user limits disabled with a note.";
+    public const string CaptureUserDirectoryDescription = "User Setup window, Directory access tab, two sample directory entries, rights checkboxes for the selected entry.";
+    public const string CaptureIpDescription = "IP Restriction window with three sample banned entries and the allow list note.";
     public const string CaptureAboutDescription = "About window.";
 }

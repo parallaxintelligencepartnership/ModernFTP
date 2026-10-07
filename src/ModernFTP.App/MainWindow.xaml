@@ -19,6 +19,7 @@
             </MenuItem>
             <MenuItem Header="{x:Static local:Strings.MenuSetup}">
                 <MenuItem Header="{x:Static local:Strings.MenuFtpSetup}" Click="OnSetup" />
+                <MenuItem Header="{x:Static local:Strings.MenuUsers}" Click="OnUsers" />
             </MenuItem>
             <MenuItem Header="{x:Static local:Strings.MenuTray}">
                 <MenuItem Header="{x:Static local:Strings.MenuMinimizeToTray}" Click="OnMinimizeToTray" />
