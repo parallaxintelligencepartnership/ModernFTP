@@ -47,7 +47,11 @@ public class AddressReuseTests
     {
         using var first = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         ListenerSockets.Configure(first);
-        Assert.NotEqual(0, (int)first.GetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress)!);
+        var option = new byte[4];
+        first.GetRawSocketOption(ListenerSockets.LinuxSolSocket, ListenerSockets.LinuxSoReuseAddr, option);
+        Assert.NotEqual(0, BitConverter.ToInt32(option));
+        first.GetRawSocketOption(ListenerSockets.LinuxSolSocket, ListenerSockets.LinuxSoReusePort, option);
+        Assert.Equal(0, BitConverter.ToInt32(option));
         first.Bind(new IPEndPoint(IPAddress.Loopback, 0));
         first.Listen(1);
         var port = ((IPEndPoint)first.LocalEndPoint!).Port;

@@ -30,7 +30,8 @@ public class ServerLifecycleTests
         int code;
         try
         {
-            code = await ModernFTP.Host.Console.Program.Main(["serve", "--config", config]);
+            // If the port were wrongly shared the host would serve forever; fail instead of hanging CI.
+            code = await ModernFTP.Host.Console.Program.Main(["serve", "--config", config]).WaitAsync(TimeSpan.FromSeconds(30));
         }
         finally
         {
