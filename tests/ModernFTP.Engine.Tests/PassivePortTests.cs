@@ -46,12 +46,12 @@ public class PassivePortTests
             await server.StartAsync();
             var control = server.LocalEndPoint!.Port;
 
-            // One round only: on Linux a port whose transfer the server closed sits in TIME_WAIT and
-            // cannot be rebound exclusively for a while, so a second round could see 425.
+            // One round only: on macOS a port whose transfer the server closed sits in TIME_WAIT and
+            // cannot be rebound for a while (no address reuse there), so a second round could see 425.
             await using var alice = await LoginAsync(control, "alice", "a");
             await using var bob = await LoginAsync(control, "bob", "b");
 
-            // Both sessions hold a listener at once, and bob asks again so the rotating cursor
+            // Both sessions hold a listener at once, and bob asks again so the round robin search
             // wraps onto alice's port: the pool must not hand it out a second time.
             var aliceReply = await alice.SendAsync("EPSV");
             Assert.Equal(229, (await bob.SendAsync("EPSV")).Code);
