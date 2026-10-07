@@ -276,6 +276,9 @@ public partial class MainWindow : Window
     private void OnUsers(object sender, RoutedEventArgs e) =>
         ShowConfigWindow(config => new UserSetupWindow(config, _host.ConfigPath));
 
+    private void OnIpRestriction(object sender, RoutedEventArgs e) =>
+        ShowConfigWindow(config => new IpRestrictionWindow(config, _host.ConfigPath));
+
     private void ShowConfigWindow(Func<ModernFtpConfig, Window> create)
     {
         try
