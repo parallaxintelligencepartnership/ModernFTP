@@ -32,7 +32,7 @@ internal sealed class TestServer : IAsyncDisposable
         var root = Path.Combine(Path.GetTempPath(), "modernftp-tests-" + Guid.NewGuid().ToString("N"));
         var home = Path.Combine(root, "home");
         Directory.CreateDirectory(home);
-        var basePort = Random.Shared.Next(40000, 60000);
+        var basePort = PickPassiveBase(20000, 30000, 10);
         var options = new FtpServerOptions
         {
             ListenAddress = IPAddress.Loopback,
@@ -56,6 +56,39 @@ internal sealed class TestServer : IAsyncDisposable
         var server = new FtpServer(options);
         await server.StartAsync();
         return new TestServer(server, root);
+    }
+
+    /// <summary>
+    /// Picks a passive range below every OS's ephemeral port range (so client sockets never sit on it)
+    /// whose ports can all be bound right now (so Windows excluded port ranges are skipped).
+    /// </summary>
+    public static int PickPassiveBase(int lowest, int highest, int width)
+    {
+        for (var attempt = 0; attempt < 50; attempt++)
+        {
+            var start = Random.Shared.Next(lowest, highest - width);
+            var free = true;
+            for (var port = start; free && port < start + width; port++)
+            {
+                using var probe = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+                try
+                {
+                    probe.ExclusiveAddressUse = true;
+                    probe.Bind(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, port));
+                }
+                catch (System.Net.Sockets.SocketException)
+                {
+                    free = false;
+                }
+            }
+
+            if (free)
+            {
+                return start;
+            }
+        }
+
+        throw new InvalidOperationException("No free passive port range found.");
     }
 
     public async Task<FtpTestClient> ConnectAsync(bool login = true)

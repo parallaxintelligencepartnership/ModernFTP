@@ -8,7 +8,8 @@ namespace ModernFTP.Conformance;
 
 /// <summary>
 /// One in-process server for the whole class: 127.0.0.1, ephemeral control port, a passive range
-/// three ports wide, a temp home, a full access user and an upload denied user, FTPS enabled.
+/// fifty ports wide (passive ports are bound exclusively, so a port whose transfer just closed may
+/// sit in TIME_WAIT for a while), a temp home, a full access user and an upload denied user, FTPS enabled.
 /// </summary>
 public sealed class ServerFixture : IAsyncLifetime
 {
@@ -30,9 +31,11 @@ public sealed class ServerFixture : IAsyncLifetime
 
     public string Work => Path.Combine(Root, "work");
 
+    public const int PassiveWidth = 50;
+
     public int PassiveMin { get; private set; }
 
-    public int PassiveMax => PassiveMin + 2;
+    public int PassiveMax => PassiveMin + PassiveWidth - 1;
 
     public string Url => $"ftp://127.0.0.1:{Server.LocalEndPoint!.Port}/";
 
@@ -45,7 +48,7 @@ public sealed class ServerFixture : IAsyncLifetime
         Directory.CreateDirectory(Home);
         Directory.CreateDirectory(ReaderHome);
         Directory.CreateDirectory(Work);
-        PassiveMin = Random.Shared.Next(41000, 59000);
+        PassiveMin = PickPassiveBase(30000, 32700, PassiveWidth);
         var certificate = X509CertificateLoader.LoadPkcs12(CertificateProvider.CreateSelfSignedPfx(), password: null);
         Server = new FtpServer(new FtpServerOptions
         {
@@ -76,6 +79,39 @@ public sealed class ServerFixture : IAsyncLifetime
         });
         _subscription = Server.Subscribe(_events.Enqueue);
         await Server.StartAsync();
+    }
+
+    /// <summary>
+    /// Picks a passive range below every OS's ephemeral port range (so client sockets never sit on it)
+    /// whose ports can all be bound right now (so Windows excluded port ranges are skipped).
+    /// </summary>
+    public static int PickPassiveBase(int lowest, int highest, int width)
+    {
+        for (var attempt = 0; attempt < 50; attempt++)
+        {
+            var start = Random.Shared.Next(lowest, highest - width);
+            var free = true;
+            for (var port = start; free && port < start + width; port++)
+            {
+                using var probe = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+                try
+                {
+                    probe.ExclusiveAddressUse = true;
+                    probe.Bind(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, port));
+                }
+                catch (System.Net.Sockets.SocketException)
+                {
+                    free = false;
+                }
+            }
+
+            if (free)
+            {
+                return start;
+            }
+        }
+
+        throw new InvalidOperationException("No free passive port range found.");
     }
 
     public async Task DisposeAsync()

@@ -8,7 +8,7 @@ public class PassivePortTests
     [Fact]
     public void PoolNeverLeasesAPortTwice()
     {
-        var port = Random.Shared.Next(45000, 46000);
+        var port = TestServer.PickPassiveBase(20000, 30000, 1);
         var pool = new PassivePortPool(port, port);
         using var first = pool.TryOpen(IPAddress.Loopback, IPAddress.Loopback);
         Assert.NotNull(first);
@@ -29,7 +29,7 @@ public class PassivePortTests
             var homeB = Directory.CreateDirectory(Path.Combine(root, "b")).FullName;
             await File.WriteAllTextAsync(Path.Combine(homeA, "file.txt"), "ALICE-PRIVATE");
             await File.WriteAllTextAsync(Path.Combine(homeB, "file.txt"), "BOB-PRIVATE");
-            var p = Random.Shared.Next(46000, 47000);
+            var p = TestServer.PickPassiveBase(20000, 30000, 2);
             await using var server = new FtpServer(new FtpServerOptions
             {
                 ListenAddress = IPAddress.Loopback,
