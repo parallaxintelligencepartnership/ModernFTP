@@ -12,7 +12,8 @@ namespace ModernFTP.Engine;
 public sealed class FtpServer : IAsyncDisposable
 {
     private readonly EventHub _events = new();
-    private readonly Dictionary<string, FtpUser> _users;
+    private readonly object _applyGate = new();
+    private volatile Dictionary<string, FtpUser> _users;
     private readonly ConcurrentDictionary<long, SessionEntry> _sessions = new();
     private readonly object _limitsGate = new();
     private readonly Dictionary<IPAddress, int> _perIp = [];
@@ -44,14 +45,7 @@ public sealed class FtpServer : IAsyncDisposable
         }
 
         Options = options;
-        _users = new Dictionary<string, FtpUser>(StringComparer.OrdinalIgnoreCase);
-        foreach (var user in options.Users)
-        {
-            if (!_users.TryAdd(user.UserName, user))
-            {
-                throw new ArgumentException($"Duplicate user '{user.UserName}'.", nameof(options));
-            }
-        }
+        _users = BuildUserTable(options.Users, nameof(options));
 
         PassivePorts = new PassivePortPool(options.PassivePortMin, options.PassivePortMax);
         if (options.Certificate is not null)
@@ -119,6 +113,118 @@ public sealed class FtpServer : IAsyncDisposable
     /// </summary>
     public bool AbortTransfer(long sessionId) =>
         _sessions.TryGetValue(sessionId, out var entry) && entry.Session.AbortTransferFromServer();
+
+    /// <summary>
+    /// Applies changed settings to the running server. Users (added, removed, enabled, disabled, password,
+    /// permissions, home, limits) take effect at once: logged in sessions of a user who was removed or
+    /// disabled get 421 and are closed, other logged in sessions switch to the user's new settings. The ban
+    /// list, messages, global limits and timeouts apply to the next command or connection. Settings that
+    /// need a restart are not applied; their names are returned (empty when everything applied).
+    /// </summary>
+    public IReadOnlyList<string> ApplyOptions(FtpServerOptions next)
+    {
+        ArgumentNullException.ThrowIfNull(next);
+        var users = BuildUserTable(next.Users, nameof(next));
+        var restart = new List<string>();
+        if (!next.ListenAddress.Equals(Options.ListenAddress))
+        {
+            restart.Add(RestartSetting.BindAddress);
+        }
+
+        if (next.Port != Options.Port)
+        {
+            restart.Add(RestartSetting.Port);
+        }
+
+        if (next.PassivePortMin != Options.PassivePortMin || next.PassivePortMax != Options.PassivePortMax)
+        {
+            restart.Add(RestartSetting.PassivePortRange);
+        }
+
+        if (!string.Equals(next.Certificate?.Thumbprint, Options.Certificate?.Thumbprint, StringComparison.OrdinalIgnoreCase))
+        {
+            restart.Add(RestartSetting.TlsCertificate);
+        }
+
+        List<(FtpSession Session, FtpUser? User)> changed = [];
+        lock (_applyGate)
+        {
+            var o = Options;
+            o.PassivePublicAddress = next.PassivePublicAddress;
+            o.AllowActiveMode = next.AllowActiveMode;
+            o.MaxConnections = next.MaxConnections;
+            o.MaxConnectionsPerUser = next.MaxConnectionsPerUser;
+            o.MaxConnectionsPerIp = next.MaxConnectionsPerIp;
+            o.MaxUnauthenticatedPerIp = next.MaxUnauthenticatedPerIp;
+            o.LoginTimeout = next.LoginTimeout;
+            o.IdleTimeout = next.IdleTimeout;
+            o.DataConnectionTimeout = next.DataConnectionTimeout;
+            o.TlsHandshakeTimeout = next.TlsHandshakeTimeout;
+            o.FailedLoginDelay = next.FailedLoginDelay;
+            o.MaxFailedLogins = next.MaxFailedLogins;
+            o.WelcomeMessage = next.WelcomeMessage;
+            o.GoodbyeMessage = next.GoodbyeMessage;
+            o.HideServerName = next.HideServerName;
+
+            if (!ReferenceEquals(next.BanList, o.BanList))
+            {
+                var wanted = next.BanList.Entries;
+                foreach (var entry in o.BanList.Entries.Except(wanted, StringComparer.Ordinal))
+                {
+                    o.BanList.Remove(entry);
+                }
+
+                foreach (var entry in wanted)
+                {
+                    o.BanList.Add(entry);
+                }
+            }
+
+            // Swap the table first, then look at the sessions; a login does the reverse (see
+            // FtpSession.PassAsync), so a login racing this call is either seen here or sees the new table.
+            Interlocked.Exchange(ref _users, users);
+            o.Users = next.Users;
+            foreach (var entry in _sessions.Values)
+            {
+                if (entry.Session.User is { } current)
+                {
+                    var updated = users.GetValueOrDefault(current.UserName);
+                    if (!ReferenceEquals(updated, current))
+                    {
+                        changed.Add((entry.Session, updated is { Enabled: true } ? updated : null));
+                    }
+                }
+            }
+        }
+
+        foreach (var (session, user) in changed)
+        {
+            if (user is null)
+            {
+                _ = session.DisconnectAsync("account disabled or removed", "Your account was disabled or removed.");
+            }
+            else
+            {
+                session.ReplaceUser(user);
+            }
+        }
+
+        return restart;
+    }
+
+    private static Dictionary<string, FtpUser> BuildUserTable(IReadOnlyList<FtpUser> list, string parameter)
+    {
+        var users = new Dictionary<string, FtpUser>(StringComparer.OrdinalIgnoreCase);
+        foreach (var user in list)
+        {
+            if (!users.TryAdd(user.UserName, user))
+            {
+                throw new ArgumentException($"Duplicate user '{user.UserName}'.", parameter);
+            }
+        }
+
+        return users;
+    }
 
     public IDisposable Subscribe(Action<ServerEvent> handler) => _events.Subscribe(new ActionObserver(handler));
 
@@ -485,6 +591,15 @@ public sealed class FtpServer : IAsyncDisposable
         public int GetHashCode((string User, IPAddress Address) obj) =>
             HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(obj.User), obj.Address);
     }
+}
+
+/// <summary>Names of the settings that <see cref="FtpServer.ApplyOptions"/> cannot change while the server runs.</summary>
+public static class RestartSetting
+{
+    public const string BindAddress = "bind address";
+    public const string Port = "port";
+    public const string PassivePortRange = "passive port range";
+    public const string TlsCertificate = "TLS certificate";
 }
 
 /// <summary>The control port is already taken, usually by another running server.</summary>

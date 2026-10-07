@@ -101,10 +101,14 @@ internal sealed partial class FtpSession
     }
 
     /// <summary>Server operator disconnect: 421, then the control connection is closed.</summary>
-    public async Task DisconnectAsync()
+    public Task DisconnectAsync() =>
+        DisconnectAsync("disconnected by the server administrator", "Disconnected by the server administrator.");
+
+    /// <summary>Server side disconnect: 421 with <paramref name="message"/>, then the control connection is closed.</summary>
+    public async Task DisconnectAsync(string reason, string message)
     {
-        _closeReason = "disconnected by the server administrator";
-        await TryReplyAsync(421, "Disconnected by the server administrator.").ConfigureAwait(false);
+        _closeReason = reason;
+        await TryReplyAsync(421, message).ConfigureAwait(false);
         try
         {
             await _cts.CancelAsync().ConfigureAwait(false);
@@ -131,6 +135,16 @@ internal sealed partial class FtpSession
         _transferAborted = true;
         meter.AbortFromServer();
         return true;
+    }
+
+    /// <summary>Switches a logged in session to the same user's new settings (the server applied a config change).</summary>
+    public void ReplaceUser(FtpUser user)
+    {
+        var current = Volatile.Read(ref _user);
+        if (current is not null && string.Equals(current.UserName, user.UserName, StringComparison.OrdinalIgnoreCase))
+        {
+            Interlocked.CompareExchange(ref _user, user, current);
+        }
     }
 
     private TimeSpan EffectiveIdleTimeout => Volatile.Read(ref _user)?.IdleTimeout ?? _options.IdleTimeout;

@@ -134,8 +134,23 @@ internal sealed partial class FtpSession
             return false;
         }
 
-        _user = user;
+        Interlocked.Exchange(ref _user, user);
         _server.MarkAuthenticated(RemoteEndPoint.Address);
+
+        // The user table may have been replaced since the lookup above (FtpServer.ApplyOptions).
+        if (_server.FindUser(user.UserName) is not { Enabled: true } current)
+        {
+            _closeReason = "account disabled or removed";
+            await ReplyAsync(421, "Your account was disabled or removed.").ConfigureAwait(false);
+            return false;
+        }
+
+        if (!ReferenceEquals(current, user))
+        {
+            ReplaceUser(current);
+            user = current;
+        }
+
         _cwd = VirtualPath.Root;
         _server.Publish(new AuthenticatedEvent { SessionId = Id, RemoteEndPoint = RemoteEndPoint, UserName = user.UserName });
         await ReplyAsync(230, "User logged in.").ConfigureAwait(false);
