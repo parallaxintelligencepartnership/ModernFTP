@@ -19,6 +19,15 @@
                 <Run Text="{x:Static local:Strings.AboutRepoText}" />
             </Hyperlink>
         </TextBlock>
+        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+            <Button x:Name="UpdateButton" Content="{x:Static local:Strings.AboutCheckUpdates}" Padding="12,4" Click="OnCheckUpdates" />
+            <TextBlock x:Name="UpdateText" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="260" />
+            <TextBlock x:Name="UpdateLinkBlock" VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed">
+                <Hyperlink x:Name="UpdateLink" RequestNavigate="OnNavigate">
+                    <Run Text="{x:Static local:Strings.AboutUpdateDownload}" />
+                </Hyperlink>
+            </TextBlock>
+        </StackPanel>
         <Button Content="{x:Static local:Strings.AboutClose}" IsDefault="True" IsCancel="True" HorizontalAlignment="Right" MinWidth="80" Margin="0,18,0,0" />
     </StackPanel>
 </Window>

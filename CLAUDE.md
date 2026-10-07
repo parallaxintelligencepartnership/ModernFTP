@@ -7,7 +7,8 @@ ModernFTP is a clean room rewrite of TYPSoft FTP Server 1.10 (Delphi, 2003) for 
 - C# on .NET 10 LTS, SDK pinned in `global.json` (10.0.401, rollForward latestFeature).
 - `src/ModernFTP.Engine`: hand written FTP engine (RFC 959, 2228, 2389, 3659, 4217). No third party FTP library.
 - `src/ModernFTP.Config`: JSON config, config folder (`%AppData%\ModernFTP`, `~/.config/modernftp`, or portable beside the exe), certificate.
-- `src/ModernFTP.Host.Console`: cross platform console host (`modernftp serve`, `check-config`, `hash-password`).
+- `src/ModernFTP.Host.Console`: cross platform console host (`modernftp-cli serve`, `check-config`, `hash-password`).
+- `src/ModernFTP.Host.Service`: Windows service host (`modernftp-service.exe`), config in `%ProgramData%\ModernFTP`.
 - `src/ModernFTP.App`: WPF shell with the built in Fluent theme (`ThemeMode="System"`), Windows only, `EnableWindowsTargeting` so it compiles everywhere.
 - License: PolyForm Noncommercial 1.0.0. Copyright holder is always written in full: "Parallax Intelligence Partnership, LLC".
 - Repos: Gitea `ParallaxIntelligence/ModernFTP` is origin (Drone, Linux); GitHub `parallaxintelligencepartnership/ModernFTP` is the public mirror (Windows runner). `origin` has both push URLs, so `git push origin main` updates both.
@@ -24,3 +25,4 @@ ModernFTP is a clean room rewrite of TYPSoft FTP Server 1.10 (Delphi, 2003) for 
 - Every historical CVE pattern keeps its named regression test in `tests/ModernFTP.Engine.Tests/CveRegressionTests.cs`.
 - Tests run with `dotnet test`. The conformance suite needs `curl` on the PATH and skips with a message when it is missing.
 - Commits are atomic and carry no Co-Authored-By trailers.
+- Phase 3 (Windows fit and packaging) is developed on the `p3` branch and merged to `main` only when Matt says so. Releases are zip files built by `.github/workflows/release.yml`: no installer, no code signing (Matt's decision).

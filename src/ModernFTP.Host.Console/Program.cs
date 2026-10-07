@@ -11,12 +11,16 @@ internal static class Program
         ModernFTP console host
 
         Usage:
-          modernftp serve [--config <path>]          Run the server until Ctrl+C
-          modernftp check-config [--config <path>]   Validate a config file and exit
-          modernftp import-typsoft --from <dir> --to <config.json> [--force]
+          modernftp-cli serve [--config <path>]          Run the server until Ctrl+C
+          modernftp-cli check-config [--config <path>]   Validate a config file and exit
+          modernftp-cli import-typsoft --from <dir> --to <config.json> [--force]
                                                      Convert a TYPSoft config.ini and users.ini to a ModernFTP config
-          modernftp hash-password                    Read a password from stdin, print hash fields
-          modernftp --version
+          modernftp-cli service install [--config <path>] | uninstall | start | stop | status
+                                                     Manage the Windows service (elevated prompt)
+          modernftp-cli firewall add [--config <path>] [--program <exe>] | remove
+                                                     Add or remove the Windows Firewall rules (elevated prompt)
+          modernftp-cli hash-password                    Read a password from stdin, print hash fields
+          modernftp-cli --version
 
         Without --config the default location is used (portable folder, %AppData%\ModernFTP or ~/.config/modernftp).
         """;
@@ -38,6 +42,11 @@ internal static class Program
         if (args[0] == "import-typsoft")
         {
             return RunImportCommand(args);
+        }
+
+        if (args[0] is "service" or "firewall")
+        {
+            return RunSystemCommand(args);
         }
 
         string? configPath = null;
@@ -70,6 +79,26 @@ internal static class Program
             return 3;
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or System.Text.Json.JsonException or UnauthorizedAccessException)
+        {
+            System.Console.Error.WriteLine($"Error: {ex.Message}");
+            return 2;
+        }
+    }
+
+    private static int RunSystemCommand(string[] args)
+    {
+        try
+        {
+            return SystemCommands.Run(
+                args,
+                new ProcessLauncher(),
+                new WindowsElevationCheck(),
+                OperatingSystem.IsWindows(),
+                AppContext.BaseDirectory,
+                System.Console.Out,
+                System.Console.Error);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or System.Text.Json.JsonException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
             System.Console.Error.WriteLine($"Error: {ex.Message}");
             return 2;

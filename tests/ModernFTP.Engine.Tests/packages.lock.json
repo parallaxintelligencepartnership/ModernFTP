@@ -93,7 +93,7 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
-      "modernftp": {
+      "modernftp-cli": {
         "type": "Project",
         "dependencies": {
           "ModernFTP.Config": "[0.1.0, )",

@@ -33,6 +33,7 @@ public partial class SetupWindow : Window
         StartWinBox.IsChecked = _model.StartWithWindows;
         StartServerBox.IsChecked = _model.StartServerOnLaunch;
         OnStartWithWindowsChanged(this, new RoutedEventArgs());
+        FirewallButton.IsEnabled = OperatingSystem.IsWindows() && configPath is not null;
     }
 
     /// <summary>Start with Windows implies starting the server, so that box is ticked and locked while it is on.</summary>
@@ -50,6 +51,20 @@ public partial class SetupWindow : Window
         }
 
         StartServerBox.IsEnabled = !withWindows;
+    }
+
+    private async void OnAddFirewall(object sender, RoutedEventArgs e)
+    {
+        FirewallButton.IsEnabled = false;
+        FirewallStatusText.Text = Strings.SetupFirewallRunning;
+        try
+        {
+            FirewallStatusText.Text = await Task.Run(() => FirewallHelper.Run(_configPath!));
+        }
+        finally
+        {
+            FirewallButton.IsEnabled = true;
+        }
     }
 
     private void OnSave(object sender, RoutedEventArgs e)

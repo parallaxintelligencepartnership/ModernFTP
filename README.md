@@ -1,44 +1,106 @@
 # ModernFTP
 
-ModernFTP is a small FTP server for Windows 11, a clean room rewrite of the classic TYPSoft FTP Server 1.10. It keeps the simple idea of the original (users, home folders, permissions, a log you can watch) and brings it up to date: FTPS, safe defaults, config stored in your profile, and a protocol engine tested against real clients.
+## What it is
 
-**Status: pre-alpha, phase 0.** The FTP engine and a console host work and are tested. The Windows app is a placeholder window. Do not expose it to the internet yet.
+ModernFTP is a small FTP and FTPS server for Windows 11, a clean room rewrite of the classic TYPSoft FTP Server 1.10. It keeps the simple idea of the original (users, home folders, permissions, a log you can watch) and brings it up to date: FTPS, safe defaults, config stored in your profile, and a protocol engine tested against real clients.
 
-## What is in the box
+It comes in three programs that share one engine:
 
-| Project | What it is |
+| Program | What it is |
 |---|---|
-| `src/ModernFTP.Engine` | The FTP server itself: sessions, commands, path jail, permissions, limits, FTPS, events. Cross platform. |
-| `src/ModernFTP.Config` | The `config.json` model, validation, config folder and the self signed certificate. Cross platform. |
-| `src/ModernFTP.Host.Console` | The `modernftp` command line host. Runs on Windows, macOS and Linux. |
-| `src/ModernFTP.App` | The Windows app (WPF with the Fluent theme). A placeholder for now. |
-| `tests/ModernFTP.Engine.Tests` | Unit tests plus one regression test for each known TYPSoft exploit. |
-| `tests/ModernFTP.Conformance` | Drives the server with the system `curl`. |
+| `ModernFTP.exe` | The Windows app: tray icon, live log, sessions, setup and user windows. |
+| `modernftp-cli.exe` | The command line host. Also installs the Windows service and adds the firewall rules. |
+| `modernftp-service.exe` | The Windows service host, started by the Service Control Manager. |
 
-## Build and test
+Status: version 0.1.0, first release. It is licensed for noncommercial use, see License below.
+
+## Download
+
+Get the zip from the Releases page of the GitHub repository (`parallaxintelligencepartnership/ModernFTP`). There are two:
+
+| Zip | Pick it when |
+|---|---|
+| `ModernFTP-<version>-win-x64.zip` | You have the .NET 10 Desktop Runtime installed, or do not mind installing it. Small download. |
+| `ModernFTP-<version>-win-x64-portable.zip` | You want nothing to install. Includes the .NET runtime, so it is larger. Contains a `portable` marker file, so config lives beside the exe. |
+
+Unzip anywhere and run `ModernFTP.exe`. There is no installer. `SHA256SUMS.txt` on the release lists the checksum of each zip.
+
+## Windows SmartScreen
+
+ModernFTP is not code signed, so Windows SmartScreen may show "Windows protected your PC" the first time you run it. Click "More info", then "Run anyway". If you downloaded the zip in a browser, you can also right click the zip, open Properties and tick "Unblock" before unzipping.
+
+## First run
+
+The config is a `config.json` file.
+
+| How you run it | Where the config lives |
+|---|---|
+| App or console, normal zip | `%AppData%\ModernFTP\config.json` |
+| Portable zip (a file named `portable` beside the exe) | Beside the exe |
+| Windows service | `%ProgramData%\ModernFTP\config.json` |
+
+The app starts with defaults and writes the file the first time you save Setup. Open Setup to set the port, passive port range and limits, and Users to add accounts. Anonymous access is off by default.
+
+To make any other zip portable, create an empty file named `portable` next to the exe.
+
+## Firewall
+
+Windows Firewall blocks incoming connections until you allow them. Either:
+
+- In the app, open Setup and click "Add Windows Firewall rules" in the Application group. Windows asks for administrator approval. Save the setup first, because the rules use the saved port and passive range.
+- Or, from an elevated prompt, run `modernftp-cli firewall add`. Add `--config <path>` to use a config other than the default, and `--program <exe>` to tie the control port rule to a different exe (the default is `modernftp-service.exe`).
+
+This creates two rules: "ModernFTP control" (the control port, for the exe) and "ModernFTP passive" (the passive port range). `modernftp-cli firewall remove` deletes both.
+
+## Run as a Windows service
+
+From an elevated prompt, in the folder that holds the exes:
+
+```
+modernftp-cli service install
+modernftp-cli service start
+modernftp-cli service status
+modernftp-cli service stop
+modernftp-cli service uninstall
+```
+
+The service is called ModernFTP, starts automatically, and runs as NT AUTHORITY\NetworkService. It reads `%ProgramData%\ModernFTP\config.json`; use `modernftp-cli service install --config <path>` for another file. Create that file before you start the service (copy one from the app, or write one by hand, see the sample below).
+
+Give the service account write access to the config folder, so it can write its log and its self signed certificate:
+
+```
+icacls "%ProgramData%\ModernFTP" /grant "NT AUTHORITY\NetworkService:(OI)(CI)M"
+```
+
+Logs go to the Windows Event Log under the source "ModernFTP" (start, stop and errors) and to a daily text log beside the config, `modernftp-service-yyyyMMdd.log`, which keeps 14 days.
+
+Do not run the app and the service on the same port at the same time.
+
+## Migrating from TYPSoft FTP Server
+
+Point the importer at the folder that holds the old `config.ini` and `users.ini`:
+
+```
+modernftp-cli import-typsoft --from "C:\Program Files (x86)\TYPSoft FTP Server" --to "%AppData%\ModernFTP\config.json"
+```
+
+Add `--force` to overwrite an existing config. Passwords are not migrated, because the old format cannot be trusted: every imported user must have a new password set in the Users window (or with `modernftp-cli hash-password`) before it can log in. Anonymous access stays off by default.
+
+## FTPS
+
+FTPS (explicit TLS, `AUTH TLS`) is on by default. With no certificate configured, ModernFTP generates a self signed one in the config folder, and clients will ask you to trust it. To use your own certificate, set `tls.certificatePath` (a PFX file) and `tls.certificatePassword` in `config.json`. Set `tls.enabled` to false to turn FTPS off.
+
+## Building from source
 
 You need the .NET 10 SDK (10.0.401 or newer) and, for the conformance tests, `curl` on your PATH.
 
-```sh
+```
 dotnet restore ModernFTP.sln --locked-mode
 dotnet build ModernFTP.sln
 dotnet test ModernFTP.sln
 ```
 
-The Windows app builds on macOS and Linux too, but only runs on Windows.
-
-## Run the console host
-
-```sh
-# create a password hash for a user (reads the password from stdin)
-dotnet run --project src/ModernFTP.Host.Console -- hash-password
-
-# check and run a config
-dotnet run --project src/ModernFTP.Host.Console -- check-config --config ./config.json
-dotnet run --project src/ModernFTP.Host.Console -- serve --config ./config.json
-```
-
-A minimal `config.json`:
+The Windows projects (app and service) build on macOS and Linux too, but only run on Windows. A minimal `config.json`:
 
 ```json
 {
@@ -58,21 +120,25 @@ A minimal `config.json`:
 }
 ```
 
-Without `--config` the server looks in `%AppData%\ModernFTP\config.json` on Windows and `~/.config/modernftp/config.json` elsewhere. Put an empty file named `portable` next to the exe to keep the config beside the exe instead. Anonymous access is off unless you set `allowAnonymous` and add a user named `anonymous`. FTPS (explicit `AUTH TLS`) is on by default with a self signed certificate created in the config folder on first run. TLS session reuse on data connections is allowed, as FileZilla requires.
+Run the console host without installing anything:
 
-Passive transfers use ports 50000 to 50999 unless you set `passivePortMin` and `passivePortMax`; allow that range through your firewall. Ports are handed out round robin, so a port rests before it is used again.
+```
+dotnet run --project src/ModernFTP.Host.Console -- hash-password
+dotnet run --project src/ModernFTP.Host.Console -- check-config --config ./config.json
+dotnet run --project src/ModernFTP.Host.Console -- serve --config ./config.json
+```
 
-Press Ctrl+C to stop the server.
+| Project | What it is |
+|---|---|
+| `src/ModernFTP.Engine` | The FTP server itself. Cross platform. |
+| `src/ModernFTP.Config` | The config model, validation, config folder and certificate. Cross platform. |
+| `src/ModernFTP.Host.Console` | The `modernftp-cli` command line host. |
+| `src/ModernFTP.Host.Service` | The Windows service host, `modernftp-service.exe`. |
+| `src/ModernFTP.App` | The Windows app (WPF with the Fluent theme). |
+| `tests/` | Unit tests, a regression test for each known TYPSoft exploit, and curl driven conformance tests. |
 
-## Windows SmartScreen
-
-ModernFTP is not code signed, so the first time you run the exe Windows SmartScreen may show "Windows protected your PC". To run it anyway:
-
-1. Click **More info**.
-2. Click **Run anyway**.
-
-Windows remembers the choice for that file. Download builds only from this repository's releases.
+Releases are built by `.github/workflows/release.yml` when a tag such as `v0.1.0` is pushed. The tag must equal `v` plus the version in `Directory.Build.props`.
 
 ## License
 
-PolyForm Noncommercial 1.0.0, see `LICENSE.md`. Personal and noncommercial use is free. For commercial use, contact Parallax Intelligence Partnership, LLC. Credits to the original are in `NOTICE.md`.
+PolyForm Noncommercial License 1.0.0. See `LICENSE.md` and `NOTICE.md`. Copyright Parallax Intelligence Partnership, LLC.

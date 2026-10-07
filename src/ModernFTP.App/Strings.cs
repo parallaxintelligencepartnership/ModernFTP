@@ -62,6 +62,12 @@ public static class Strings
     public const string SetupGroupLimits = "Limits";
     public const string SetupGroupMessages = "Messages";
     public const string SetupGroupApp = "Application";
+    public const string SetupAddFirewall = "Add Windows _Firewall rules";
+    public const string SetupFirewallRunning = "Waiting for the firewall rules to be added...";
+    public const string SetupFirewallDone = "Firewall rules added for ports {0} and {1} to {2}.";
+    public const string SetupFirewallDeclined = "Firewall rules were not added: the administrator prompt was declined.";
+    public const string SetupFirewallFailedFormat = "Firewall rules were not added (exit code {0}). Save the setup first, then try again.";
+    public const string SetupFirewallLaunchFailedFormat = "Could not start the firewall helper: {0}";
     public const string SetupBindAddress = "_Bind address";
     public const string SetupPort = "FTP _port";
     public const string SetupPasvRange = "_Passive port range";
@@ -153,6 +159,12 @@ public static class Strings
     public const string AboutLicenseName = "PolyForm Noncommercial License 1.0.0";
     public const string AboutRepoText = "github.com/parallaxintelligencepartnership/ModernFTP";
     public const string AboutRepoUrl = "https://github.com/parallaxintelligencepartnership/ModernFTP";
+    public const string AboutCheckUpdates = "Check for _updates";
+    public const string AboutChecking = "Checking...";
+    public const string AboutUpToDate = "You have the latest version";
+    public const string AboutUpdateAvailableFormat = "Version {0} is available";
+    public const string AboutUpdateDownload = "Open the release page";
+    public const string AboutUpdateFailed = "Could not check for updates. Check your internet connection and try again.";
     public const string AboutClose = "_Close";
 
     // Tray
