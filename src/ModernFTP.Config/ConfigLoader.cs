@@ -185,7 +185,7 @@ public static class ConfigLoader
                 HomeDirectory = Path.GetFullPath(user.HomeDirectory, configDirectory),
                 DownloadRateKBps = user.DownloadRateKBps,
                 Permissions = new PermissionRules(new FtpPermissions(
-                    p.Download, p.Upload, p.Delete, p.RenameFile, p.RenameDir, p.MakeDir, p.List)),
+                    p.Download, p.Upload, p.Delete, p.MakeDir, p.RemoveDir, p.Rename, p.List)),
             });
         }
 

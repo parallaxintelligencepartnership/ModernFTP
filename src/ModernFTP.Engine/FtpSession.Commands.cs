@@ -848,7 +848,7 @@ internal sealed partial class FtpSession
             return true;
         }
 
-        if (!Permissions(path).Delete)
+        if (!Permissions(path).RemoveDir)
         {
             await ReplyAsync(550, "Permission denied.").ConfigureAwait(false);
             return true;
@@ -897,7 +897,7 @@ internal sealed partial class FtpSession
         }
 
         var permissions = Permissions(path);
-        if (isDirectory ? !permissions.RenameDir : !permissions.RenameFile)
+        if (!permissions.Rename)
         {
             await ReplyAsync(550, "Permission denied.").ConfigureAwait(false);
             return true;
@@ -932,7 +932,7 @@ internal sealed partial class FtpSession
         }
 
         var permissions = Permissions(target);
-        if (isDirectory ? !permissions.RenameDir : !permissions.RenameFile)
+        if (!permissions.Rename)
         {
             await ReplyAsync(550, "Permission denied.").ConfigureAwait(false);
             return true;
@@ -1037,7 +1037,7 @@ internal sealed partial class FtpSession
                 perm.Append('d');
             }
 
-            if (permissions.RenameFile)
+            if (permissions.Rename)
             {
                 perm.Append('f');
             }
@@ -1056,12 +1056,12 @@ internal sealed partial class FtpSession
             dirPerm.Append('c');
         }
 
-        if (permissions.Delete)
+        if (permissions.RemoveDir)
         {
             dirPerm.Append("dp");
         }
 
-        if (permissions.RenameDir)
+        if (permissions.Rename)
         {
             dirPerm.Append('f');
         }

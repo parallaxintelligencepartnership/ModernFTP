@@ -67,4 +67,41 @@ public class PermissionTests
         Assert.Equal(250, (await client.SendAsync("RMD sub")).Code);
         Assert.False(Directory.Exists(Path.Combine(server.Home, "sub")));
     }
+
+    [Fact]
+    public async Task RemoveDirNeedsRemoveDirNotDelete()
+    {
+        var deleteOnly = FtpPermissions.None with { Delete = true, List = true };
+        await using (var server = await TestServer.StartAsync(deleteOnly))
+        {
+            Directory.CreateDirectory(Path.Combine(server.Home, "d"));
+            await using var client = await server.ConnectAsync();
+            Assert.Equal(550, (await client.SendAsync("RMD d")).Code);
+            Assert.True(Directory.Exists(Path.Combine(server.Home, "d")));
+        }
+
+        var removeOnly = FtpPermissions.None with { RemoveDir = true, List = true };
+        await using (var server = await TestServer.StartAsync(removeOnly))
+        {
+            Directory.CreateDirectory(Path.Combine(server.Home, "d"));
+            await File.WriteAllTextAsync(Path.Combine(server.Home, "f.txt"), "x");
+            await using var client = await server.ConnectAsync();
+            Assert.Equal(550, (await client.SendAsync("DELE f.txt")).Code);
+            Assert.Equal(250, (await client.SendAsync("RMD d")).Code);
+        }
+    }
+
+    [Fact]
+    public async Task RenameFlagCoversFilesAndDirectories()
+    {
+        var renameOnly = FtpPermissions.None with { Rename = true, List = true };
+        await using var server = await TestServer.StartAsync(renameOnly);
+        await File.WriteAllTextAsync(Path.Combine(server.Home, "a.txt"), "x");
+        Directory.CreateDirectory(Path.Combine(server.Home, "d"));
+        await using var client = await server.ConnectAsync();
+        Assert.Equal(350, (await client.SendAsync("RNFR a.txt")).Code);
+        Assert.Equal(250, (await client.SendAsync("RNTO b.txt")).Code);
+        Assert.Equal(350, (await client.SendAsync("RNFR d")).Code);
+        Assert.Equal(250, (await client.SendAsync("RNTO e")).Code);
+    }
 }

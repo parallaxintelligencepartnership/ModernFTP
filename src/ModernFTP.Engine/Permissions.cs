@@ -5,9 +5,9 @@ public sealed record FtpPermissions(
     bool Download,
     bool Upload,
     bool Delete,
-    bool RenameFile,
-    bool RenameDir,
     bool MakeDir,
+    bool RemoveDir,
+    bool Rename,
     bool List)
 {
     public static FtpPermissions All { get; } = new(true, true, true, true, true, true, true);

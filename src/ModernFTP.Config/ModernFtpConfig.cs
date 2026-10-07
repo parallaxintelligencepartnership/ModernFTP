@@ -86,11 +86,11 @@ public sealed class PermissionsConfig
 
     public bool Delete { get; set; }
 
-    public bool RenameFile { get; set; }
-
-    public bool RenameDir { get; set; }
-
     public bool MakeDir { get; set; }
+
+    public bool RemoveDir { get; set; }
+
+    public bool Rename { get; set; }
 
     public bool List { get; set; } = true;
 }
