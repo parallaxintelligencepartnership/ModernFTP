@@ -4,7 +4,6 @@ using System.IO;
 using System.Net;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Threading;
 using ModernFTP.Config;
 using ModernFTP.Engine;

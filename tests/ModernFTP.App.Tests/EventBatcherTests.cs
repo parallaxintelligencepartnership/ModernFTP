@@ -50,7 +50,12 @@ public class EventBatcherTests(ITestOutputHelper output)
     {
         RunOnDispatcher(async dispatcher =>
         {
-            var box = new RichTextBox { IsReadOnly = true };
+            // Same list setup as the main window's log pane: virtualized, one TextBlock per row.
+            var row = new FrameworkElementFactory(typeof(TextBlock));
+            row.SetBinding(LogView.LineProperty, new System.Windows.Data.Binding());
+            var box = new ListBox { ItemTemplate = new DataTemplate { VisualTree = row } };
+            VirtualizingPanel.SetIsVirtualizing(box, true);
+            VirtualizingPanel.SetVirtualizationMode(box, VirtualizationMode.Recycling);
             var window = new Window
             {
                 Content = box,

@@ -53,18 +53,28 @@
 
         <TabControl x:Name="Tabs" Margin="8">
             <TabItem x:Name="LogTab" Header="{x:Static local:Strings.TabLog}">
-                <RichTextBox x:Name="LogBox"
-                             IsReadOnly="True"
-                             IsReadOnlyCaretVisible="True"
-                             VerticalScrollBarVisibility="Auto"
-                             HorizontalScrollBarVisibility="Auto"
-                             FontFamily="Cascadia Mono, Consolas, Courier New"
-                             FontSize="12"
-                             Margin="0,6,0,0">
-                    <RichTextBox.Document>
-                        <FlowDocument PageWidth="5000" FontFamily="Cascadia Mono, Consolas, Courier New" FontSize="12" />
-                    </RichTextBox.Document>
-                </RichTextBox>
+                <ListBox x:Name="LogBox"
+                         SelectionMode="Extended"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         FontFamily="Cascadia Mono, Consolas, Courier New"
+                         FontSize="12"
+                         Margin="0,6,0,0">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="Padding" Value="4,0" />
+                            <Setter Property="Margin" Value="0" />
+                            <Setter Property="MinHeight" Value="0" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type local:LogLine}">
+                            <TextBlock local:LogView.Line="{Binding}" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </TabItem>
             <TabItem x:Name="UsersTab" Header="{x:Static local:Strings.TabUsers}">
                 <Grid Margin="0,6,0,0">
