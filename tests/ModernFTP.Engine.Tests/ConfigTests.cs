@@ -33,4 +33,35 @@ public class ConfigTests
             Directory.Delete(directory, recursive: true);
         }
     }
+
+    [Fact]
+    public void DisabledUserNeedsNoPasswordButEnabledUserDoes()
+    {
+        var directory = Directory.CreateTempSubdirectory("modernftp-tests-").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(directory, "home"));
+            var config = ConfigLoader.Parse("""
+                {
+                  "tls": { "enabled": false },
+                  "users": [
+                    { "username": "imported", "enabled": false, "homeDirectory": "home" },
+                    { "username": "active", "enabled": true, "homeDirectory": "home" }
+                  ]
+                }
+                """);
+            var errors = ConfigLoader.Validate(config, directory);
+            Assert.Equal(["user 'active' has no password."], errors);
+
+            config.Users.RemoveAt(1);
+            Assert.Empty(ConfigLoader.Validate(config, directory));
+            var user = Assert.Single(ConfigLoader.ToServerOptions(config, directory).Users);
+            Assert.False(user.Enabled);
+            Assert.False(user.Credential.Verify(string.Empty));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
 }

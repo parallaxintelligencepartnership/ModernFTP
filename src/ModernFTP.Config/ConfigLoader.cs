@@ -127,8 +127,9 @@ public static class ConfigLoader
                     errors.Add($"user '{label}' has a plain password but allowPlaintextPasswords is false.");
                 }
             }
-            else
+            else if (user.Enabled)
             {
+                // Disabled users (imported ones arrive disabled) may wait for a password.
                 errors.Add($"user '{label}' has no password.");
             }
         }
@@ -177,9 +178,13 @@ public static class ConfigLoader
                     Convert.FromBase64String(user.PasswordSalt!),
                     user.PasswordIterations);
             }
+            else if (user.Password is not null)
+            {
+                credential = new PlaintextCredential(user.Password);
+            }
             else
             {
-                credential = new PlaintextCredential(user.Password!);
+                credential = NoPasswordCredential.Instance;
             }
 
             var (homePath, p) = user.EffectiveHome();
@@ -230,5 +235,13 @@ public static class ConfigLoader
 
         var buffer = new byte[value.Length];
         return Convert.TryFromBase64String(value, buffer, out var written) && written > 0;
+    }
+
+    /// <summary>A disabled user without a password yet: no password ever matches.</summary>
+    private sealed class NoPasswordCredential : PasswordCredential
+    {
+        public static NoPasswordCredential Instance { get; } = new();
+
+        public override bool Verify(string password) => false;
     }
 }
