@@ -75,6 +75,37 @@ public sealed class UserConfig
     public int DownloadRateKBps { get; set; }
 
     public PermissionsConfig Permissions { get; set; } = new();
+
+    /// <summary>
+    /// Directory rules in the style of the original. The home entry (alias null, or the first entry when
+    /// none has a null alias) overrides <see cref="HomeDirectory"/> and <see cref="Permissions"/>. Entries
+    /// with an alias are virtual links shown at the root; the engine does not mount them yet.
+    /// </summary>
+    public List<DirectoryConfig> Directories { get; set; } = [];
+
+    /// <summary>The home directory and permissions that feed the engine's home rule.</summary>
+    public (string Path, PermissionsConfig Permissions) EffectiveHome()
+    {
+        if (Directories.Count == 0)
+        {
+            return (HomeDirectory, Permissions);
+        }
+
+        var home = Directories.Find(d => d.Alias is null) ?? Directories[0];
+        return (home.Path, home.Permissions);
+    }
+}
+
+public sealed class DirectoryConfig
+{
+    public string Path { get; set; } = string.Empty;
+
+    /// <summary>Null means the home directory; otherwise a virtual link name shown at the root.</summary>
+    public string? Alias { get; set; }
+
+    public PermissionsConfig Permissions { get; set; } = new();
+
+    public bool IncludeSubdirectories { get; set; } = true;
 }
 
 /// <summary>Defaults are read only: download and list.</summary>

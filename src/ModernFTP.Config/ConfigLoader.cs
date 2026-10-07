@@ -87,11 +87,12 @@ public static class ConfigLoader
                 errors.Add($"user '{label}' is listed more than once.");
             }
 
-            if (string.IsNullOrWhiteSpace(user.HomeDirectory))
+            var effectiveHome = user.EffectiveHome().Path;
+            if (string.IsNullOrWhiteSpace(effectiveHome))
             {
                 errors.Add($"user '{label}' needs a homeDirectory.");
             }
-            else if (!Directory.Exists(Path.GetFullPath(user.HomeDirectory, configDirectory)))
+            else if (!Directory.Exists(Path.GetFullPath(effectiveHome, configDirectory)))
             {
                 errors.Add($"user '{label}' homeDirectory does not exist.");
             }
@@ -176,13 +177,13 @@ public static class ConfigLoader
                 credential = new PlaintextCredential(user.Password!);
             }
 
-            var p = user.Permissions;
+            var (homePath, p) = user.EffectiveHome();
             users.Add(new FtpUser
             {
                 UserName = user.Username,
                 Credential = credential,
                 Enabled = user.Enabled,
-                HomeDirectory = Path.GetFullPath(user.HomeDirectory, configDirectory),
+                HomeDirectory = Path.GetFullPath(homePath, configDirectory),
                 DownloadRateKBps = user.DownloadRateKBps,
                 Permissions = new PermissionRules(new FtpPermissions(
                     p.Download, p.Upload, p.Delete, p.MakeDir, p.RemoveDir, p.Rename, p.List)),
