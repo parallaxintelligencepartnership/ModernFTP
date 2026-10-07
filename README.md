@@ -58,7 +58,7 @@ A minimal `config.json`:
 }
 ```
 
-Without `--config` the server looks in `%AppData%\ModernFTP\config.json` on Windows and `~/.config/modernftp/config.json` elsewhere. Put an empty file named `portable` next to the exe to keep the config beside the exe instead. Anonymous access is off unless you set `allowAnonymous` and add a user named `anonymous`. FTPS (explicit `AUTH TLS`) is on by default with a self signed certificate created in the config folder on first run.
+Without `--config` the server looks in `%AppData%\ModernFTP\config.json` on Windows and `~/.config/modernftp/config.json` elsewhere. Put an empty file named `portable` next to the exe to keep the config beside the exe instead. Anonymous access is off unless you set `allowAnonymous` and add a user named `anonymous`. FTPS (explicit `AUTH TLS`) is on by default with a self signed certificate created in the config folder on first run. TLS session reuse on data connections is allowed, as FileZilla requires.
 
 Passive transfers use ports 50000 to 50999 unless you set `passivePortMin` and `passivePortMax`; allow that range through your firewall. Ports are handed out round robin, so a port rests before it is used again.
 

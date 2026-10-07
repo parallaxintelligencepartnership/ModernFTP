@@ -135,6 +135,27 @@ public class CurlConformanceTests(ServerFixture fx) : IClassFixture<ServerFixtur
     }
 
     [CurlFact]
+    public async Task ExplicitFtpsDownloadOverTls12And13ReusesTheSessionOnTheDataConnection()
+    {
+        // The data connection resumes the control connection's TLS session (AllowTlsResume); curl,
+        // like FileZilla, offers that resumption. Both protocol versions must complete the transfer.
+        var bytes = ServerFixture.RandomBytes(200_000);
+        await File.WriteAllBytesAsync(Path.Combine(fx.Home, "tls-reuse.bin"), bytes);
+        string[][] variants = [["--tlsv1.2", "--tls-max", "1.2"], []];
+        foreach (var variant in variants)
+        {
+            var local = fx.WorkFile($"tls-reuse-{variant.Length}.bin");
+            var result = await Curl.RunAsync(
+                [.. variant, "--verbose", "--ftp-ssl-reqd", "--insecure", "--user", fx.UserPass, "--output", local, Url("tls-reuse.bin")]);
+            Ok(result);
+            Assert.Contains("PROT P", result.StdErr, StringComparison.Ordinal);
+            Assert.Equal(bytes, await File.ReadAllBytesAsync(local));
+        }
+
+        Assert.True((await fx.LastTransferStartedAsync("/tls-reuse.bin", 2)).Secure);
+    }
+
+    [CurlFact]
     public async Task ActiveModeDownload()
     {
         var bytes = ServerFixture.RandomBytes(50_000);

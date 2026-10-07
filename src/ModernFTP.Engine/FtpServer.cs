@@ -231,6 +231,10 @@ public sealed class FtpServer : IAsyncDisposable
             ServerCertificateContext = _certificateContext,
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
             ClientCertificateRequired = false,
+
+            // Data connections resume the control connection's TLS session; FileZilla requires it.
+            // SslStream reports nothing about whether a handshake was a resumption, so it is not logged.
+            AllowTlsResume = true,
             CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
         };
 
