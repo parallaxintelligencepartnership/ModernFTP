@@ -31,6 +31,21 @@ public partial class SetupWindow : Window
         HideNameBox.IsChecked = _model.HideServerName;
         StartMinBox.IsChecked = _model.StartMinimizedToTray;
         StartWinBox.IsChecked = _model.StartWithWindows;
+        FirewallButton.IsEnabled = OperatingSystem.IsWindows() && configPath is not null;
+    }
+
+    private async void OnAddFirewall(object sender, RoutedEventArgs e)
+    {
+        FirewallButton.IsEnabled = false;
+        FirewallStatusText.Text = Strings.SetupFirewallRunning;
+        try
+        {
+            FirewallStatusText.Text = await Task.Run(() => FirewallHelper.Run(_configPath!));
+        }
+        finally
+        {
+            FirewallButton.IsEnabled = true;
+        }
     }
 
     private void OnSave(object sender, RoutedEventArgs e)

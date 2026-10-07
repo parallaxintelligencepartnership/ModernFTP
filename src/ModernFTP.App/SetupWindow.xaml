@@ -94,6 +94,8 @@
                 <StackPanel>
                     <CheckBox x:Name="StartMinBox" Content="{x:Static local:Strings.SetupStartMinimized}" Margin="0,2" />
                     <CheckBox x:Name="StartWinBox" Content="{x:Static local:Strings.SetupStartWithWindows}" Margin="0,2" />
+                    <Button x:Name="FirewallButton" Content="{x:Static local:Strings.SetupAddFirewall}" HorizontalAlignment="Left" Margin="0,8,0,0" Padding="12,4" Click="OnAddFirewall" />
+                    <TextBlock x:Name="FirewallStatusText" Margin="0,6,0,0" TextWrapping="Wrap" Opacity="0.85" />
                 </StackPanel>
             </GroupBox>
         </StackPanel>
