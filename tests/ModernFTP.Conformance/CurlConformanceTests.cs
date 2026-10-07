@@ -135,6 +135,29 @@ public class CurlConformanceTests(ServerFixture fx) : IClassFixture<ServerFixtur
     }
 
     [CurlFact]
+    public async Task ExplicitFtpsDownloadTwentyTimesInARow()
+    {
+        // Curl on Schannel answers the server's close_notify and reads on; a server that closes the data
+        // socket before that close_notify arrives makes some of these fail with curl exit 56.
+        var bytes = ServerFixture.RandomBytes(250_000);
+        await File.WriteAllBytesAsync(Path.Combine(fx.Home, "tls-loop.bin"), bytes);
+        var failures = new List<string>();
+        const int runs = 20;
+        for (var i = 0; i < runs; i++)
+        {
+            var local = fx.WorkFile($"tls-loop-{i}.bin");
+            var result = await Curl.RunAsync("--ssl-reqd", "--insecure", "--user", fx.UserPass, "--output", local, Url("tls-loop.bin"));
+            var got = result.ExitCode == 0 ? await File.ReadAllBytesAsync(local) : [];
+            if (!bytes.AsSpan().SequenceEqual(got))
+            {
+                failures.Add($"run {i + 1}: curl exit {result.ExitCode} {result.StdErr.Trim()}");
+            }
+        }
+
+        Assert.True(failures.Count == 0, $"{runs - failures.Count} of {runs} FTPS downloads passed. " + string.Join(" | ", failures));
+    }
+
+    [CurlFact]
     public async Task ExplicitFtpsDownloadOverTls12And13ReusesTheSessionOnTheDataConnection()
     {
         // The data connection resumes the control connection's TLS session (AllowTlsResume); curl,

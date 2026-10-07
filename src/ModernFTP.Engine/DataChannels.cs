@@ -3,7 +3,7 @@ using System.Net.Sockets;
 
 namespace ModernFTP.Engine;
 
-internal sealed record DataConnection(Stream Stream, int LocalPort);
+internal sealed record DataConnection(Stream Stream, Socket Socket, int LocalPort);
 
 internal interface IDataChannel : IDisposable
 {
@@ -98,7 +98,7 @@ internal sealed class PassiveDataChannel(Socket listener, int port, IPAddress ex
                 }
 
                 CloseListener();
-                return new DataConnection(new NetworkStream(socket, ownsSocket: true), port);
+                return new DataConnection(new NetworkStream(socket, ownsSocket: true), socket, port);
             }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -130,7 +130,7 @@ internal sealed class ActiveDataChannel(IPEndPoint target) : IDataChannel
         try
         {
             await socket.ConnectAsync(target, timeoutSource.Token).ConfigureAwait(false);
-            return new DataConnection(new NetworkStream(socket, ownsSocket: true), ((IPEndPoint)socket.LocalEndPoint!).Port);
+            return new DataConnection(new NetworkStream(socket, ownsSocket: true), socket, ((IPEndPoint)socket.LocalEndPoint!).Port);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {

@@ -145,6 +145,7 @@ internal sealed partial class FtpSession
     private async Task<bool> QuitAsync(string argument)
     {
         _closeReason = "client quit";
+        _quit = true;
         var lines = SplitMessage(_options.GoodbyeMessage).ToList();
         await ReplyAsync(221, lines.Count == 0 ? "Goodbye." : string.Join('\n', lines)).ConfigureAwait(false);
         return false;

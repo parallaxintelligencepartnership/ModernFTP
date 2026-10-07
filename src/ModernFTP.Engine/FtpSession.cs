@@ -17,6 +17,9 @@ internal sealed partial class FtpSession
 {
     private static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(30);
 
+    /// <summary>How long a TLS close waits for the client's close_notify after sending the server's.</summary>
+    internal static readonly TimeSpan TlsCloseWait = TimeSpan.FromSeconds(2);
+
     private readonly FtpServer _server;
     private readonly FtpServerOptions _options;
     private readonly Socket _socket;
@@ -29,6 +32,7 @@ internal sealed partial class FtpSession
     private Stream _control;
     private long _lastActivity = Environment.TickCount64;
     private string _closeReason = "client closed the connection";
+    private bool _quit;
 
     private string? _pendingUser;
     private FtpUser? _user;
@@ -220,6 +224,18 @@ internal sealed partial class FtpSession
 
         await AbortTransferAsync().ConfigureAwait(false);
         ReplaceDataChannel(null);
+        if (_quit && _control is SslStream controlTls)
+        {
+            try
+            {
+                await CloseTlsAsync(controlTls, _socket).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or SocketException or ObjectDisposedException or InvalidOperationException)
+            {
+                // The client is already gone; the socket is closed below.
+            }
+        }
+
         try
         {
             _socket.Shutdown(SocketShutdown.Both);
@@ -579,7 +595,7 @@ internal sealed partial class FtpSession
             await data.FlushAsync(token).ConfigureAwait(false);
             if (data is SslStream ssl)
             {
-                await ssl.ShutdownAsync().ConfigureAwait(false);
+                await CloseTlsAsync(ssl, connection.Socket).ConfigureAwait(false);
             }
 
             code = 226;
@@ -693,6 +709,41 @@ internal sealed partial class FtpSession
                 TotalBytesReceived = _server.TotalBytesReceived,
                 ActiveConnections = _server.ActiveConnections,
             });
+        }
+    }
+
+    /// <summary>
+    /// Sends the server's close_notify, ends the send side, then reads until the client's close_notify or
+    /// EOF for at most <see cref="TlsCloseWait"/>. A strict TLS client answers close_notify with its own;
+    /// closing the socket before that arrives turns the client's next read into a reset.
+    /// </summary>
+    private static async Task CloseTlsAsync(SslStream ssl, Socket socket)
+    {
+        await ssl.ShutdownAsync().ConfigureAwait(false);
+        try
+        {
+            socket.Shutdown(SocketShutdown.Send);
+        }
+        catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
+        {
+            return;
+        }
+
+        var drain = ArrayPool<byte>.Shared.Rent(4096);
+        try
+        {
+            using var wait = new CancellationTokenSource(TlsCloseWait);
+            while (await ssl.ReadAsync(drain.AsMemory(), wait.Token).ConfigureAwait(false) > 0)
+            {
+            }
+        }
+        catch (Exception ex) when (ex is IOException or OperationCanceledException or SocketException or ObjectDisposedException or AuthenticationException)
+        {
+            // Client closed without a close_notify, reset, or did not answer in time: close anyway.
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(drain);
         }
     }
 
