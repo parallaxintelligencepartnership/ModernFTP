@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows.Threading;
 using ModernFTP.Engine;
 
@@ -44,6 +45,9 @@ public sealed class EventBatcher : IDisposable
         }
     }
 
+    /// <summary>How long the last <see cref="Flush"/> took to take the queue (measurements).</summary>
+    public TimeSpan LastDrain { get; private set; }
+
     /// <summary>Events dropped since this batcher was created.</summary>
     public long DroppedTotal => Interlocked.Read(ref _droppedTotal);
 
@@ -74,6 +78,7 @@ public sealed class EventBatcher : IDisposable
     {
         ServerEvent[] batch;
         long dropped;
+        var watch = Stopwatch.StartNew();
         lock (_gate)
         {
             batch = [.. _queue];
@@ -81,6 +86,8 @@ public sealed class EventBatcher : IDisposable
             dropped = _dropped;
             _dropped = 0;
         }
+
+        LastDrain = watch.Elapsed;
 
         if (batch.Length > 0 || dropped > 0)
         {

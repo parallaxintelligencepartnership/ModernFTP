@@ -149,17 +149,13 @@ public partial class MainWindow : Window
     public void ShowUsersPage() => Tabs.SelectedItem = UsersTab;
 
     /// <summary>
-    /// Adds one batch of engine events to the log (with a drop notice when events were dropped) and refreshes
-    /// the session list and counters once for the whole batch.
+    /// Adds one batch of engine events to the log (with a drop notice when events were dropped). The Users page
+    /// and the status bar refresh on their own 1 s timer, not per batch.
     /// </summary>
-    public void OnServerEvents(IReadOnlyList<ServerEvent> events, long dropped)
-    {
+    public void OnServerEvents(IReadOnlyList<ServerEvent> events, long dropped) =>
         _log.Append(LogView.Lines(events, dropped));
-        RefreshSessions();
-        UpdateStatus();
-    }
 
-    /// <summary>Rebuilds the session rows from the server's snapshot. Runs every second and once per event batch.</summary>
+    /// <summary>Rebuilds the session rows from the server's snapshot. Runs on the 1 s timer.</summary>
     private void RefreshSessions()
     {
         if (_sampleMode)
