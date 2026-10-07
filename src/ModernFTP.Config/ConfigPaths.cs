@@ -28,6 +28,12 @@ public static class ConfigPaths
         return Path.Combine(home, ".config", UnixFolderName);
     }
 
+    /// <summary>The machine wide config folder used by the Windows service: %ProgramData%\ModernFTP.</summary>
+    public static string MachineConfigDirectory() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), AppFolderName);
+
+    public static string MachineConfigPath() => Path.Combine(MachineConfigDirectory(), ConfigFileName);
+
     public static string DefaultConfigPath(string? executableDirectory = null) =>
         Path.Combine(ResolveConfigDirectory(executableDirectory), ConfigFileName);
 }
