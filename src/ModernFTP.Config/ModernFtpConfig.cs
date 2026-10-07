@@ -24,6 +24,12 @@ public sealed class ModernFtpConfig
 
     public int IdleTimeoutSeconds { get; set; } = 300;
 
+    /// <summary>Seconds a connection may stay without logging in before it gets 421. 0 disables.</summary>
+    public int LoginTimeoutSeconds { get; set; } = 30;
+
+    /// <summary>Connections from one address that have not logged in yet. 0 means unlimited.</summary>
+    public int MaxUnauthenticatedPerIp { get; set; } = 5;
+
     public string WelcomeMessage { get; set; } = "Welcome to ModernFTP.";
 
     public string GoodbyeMessage { get; set; } = "Goodbye.";

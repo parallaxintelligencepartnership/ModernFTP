@@ -82,7 +82,7 @@ internal sealed partial class FtpSession
         try
         {
             await ReplyAsync(220, BuildBanner()).ConfigureAwait(false);
-            watchdog = WatchIdleAsync(token);
+            watchdog = Task.WhenAll(WatchIdleAsync(token), WatchLoginAsync(token));
             while (!token.IsCancellationRequested)
             {
                 var line = await _reader.ReadLineAsync(_control, token).ConfigureAwait(false);
@@ -209,6 +209,33 @@ internal sealed partial class FtpSession
         }
         catch (OperationCanceledException)
         {
+        }
+    }
+
+    /// <summary>Closes a session that has not logged in within the login timeout, whatever it sends.</summary>
+    private async Task WatchLoginAsync(CancellationToken token)
+    {
+        var limit = _options.LoginTimeout;
+        if (limit <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            await Task.Delay(limit, token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (Volatile.Read(ref _user) is null)
+        {
+            _closeReason = "login timeout";
+            await TryReplyAsync(421, "Login timeout reached, closing control connection.").ConfigureAwait(false);
+            await _cts.CancelAsync().ConfigureAwait(false);
+            _socket.Close();
         }
     }
 

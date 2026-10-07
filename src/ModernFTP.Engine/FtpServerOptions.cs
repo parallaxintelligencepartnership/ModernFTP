@@ -26,6 +26,12 @@ public sealed class FtpServerOptions
 
     public int MaxConnectionsPerIp { get; set; } = 10;
 
+    /// <summary>Connections from one address that have not logged in yet. 0 means unlimited.</summary>
+    public int MaxUnauthenticatedPerIp { get; set; } = 5;
+
+    /// <summary>A session that has not logged in this long after connecting gets 421. Zero or negative disables.</summary>
+    public TimeSpan LoginTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
     /// <summary>Zero or negative disables the idle timeout.</summary>
     public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(5);
 

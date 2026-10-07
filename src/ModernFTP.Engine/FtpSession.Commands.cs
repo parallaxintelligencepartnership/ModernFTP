@@ -135,6 +135,7 @@ internal sealed partial class FtpSession
         }
 
         _user = user;
+        _server.MarkAuthenticated(RemoteEndPoint.Address);
         _cwd = VirtualPath.Root;
         _server.Publish(new AuthenticatedEvent { SessionId = Id, RemoteEndPoint = RemoteEndPoint, UserName = user.UserName });
         await ReplyAsync(230, "User logged in.").ConfigureAwait(false);

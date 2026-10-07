@@ -65,6 +65,56 @@ public class LimitsTests
     }
 
     [Fact]
+    public async Task SessionThatNeverLogsInIsClosedAtTheLoginTimeoutDespiteActivity()
+    {
+        await using var server = await TestServer.StartAsync(configure: o => o.LoginTimeout = TimeSpan.FromMilliseconds(800));
+        await using var client = await server.ConnectAsync(login: false);
+        var watch = Stopwatch.StartNew();
+        FtpReply reply;
+        do
+        {
+            reply = await client.SendAsync("NOOP");
+            await Task.Delay(150);
+        }
+        while (reply.Code == 200 && watch.Elapsed < TimeSpan.FromSeconds(5));
+
+        Assert.Equal(421, reply.Code);
+        Assert.Contains("Login timeout", reply.Text, StringComparison.Ordinal);
+        Assert.Null(await client.ReadLineOrNullAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
+    public async Task LoggedInSessionOutlivesTheLoginTimeout()
+    {
+        await using var server = await TestServer.StartAsync(configure: o => o.LoginTimeout = TimeSpan.FromMilliseconds(300));
+        await using var client = await server.ConnectAsync();
+        await Task.Delay(800);
+        Assert.Equal(200, (await client.SendAsync("NOOP")).Code);
+    }
+
+    [Fact]
+    public async Task UnauthenticatedConnectionsPerAddressAreCapped()
+    {
+        await using var server = await TestServer.StartAsync(configure: o =>
+        {
+            o.MaxUnauthenticatedPerIp = 2;
+            o.MaxConnectionsPerIp = 0;
+        });
+        await using var first = await server.ConnectAsync(login: false);
+        await using var second = await server.ConnectAsync(login: false);
+        await using (var third = await FtpTestClient.ConnectAsync(server.Port))
+        {
+            Assert.Equal(421, (await third.ReadReplyAsync()).Code);
+        }
+
+        // Once one of them logs in it no longer counts, so a new client gets in.
+        Assert.Equal(331, (await first.SendAsync($"USER {TestServer.UserName}")).Code);
+        Assert.Equal(230, (await first.SendAsync($"PASS {TestServer.Password}")).Code);
+        await using var fourth = await server.ConnectAsync(login: false);
+        Assert.Equal(200, (await fourth.SendAsync("NOOP")).Code);
+    }
+
+    [Fact]
     public async Task BannedAddressIsRefusedAtAccept()
     {
         await using var server = await TestServer.StartAsync(configure: o => o.BanList.Add("127.0.0.0/8"));

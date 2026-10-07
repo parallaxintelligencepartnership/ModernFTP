@@ -16,6 +16,7 @@ public sealed class FtpServer : IAsyncDisposable
     private readonly ConcurrentDictionary<long, SessionEntry> _sessions = new();
     private readonly object _limitsGate = new();
     private readonly Dictionary<IPAddress, int> _perIp = [];
+    private readonly Dictionary<IPAddress, int> _unauthenticatedPerIp = [];
     private readonly Dictionary<string, int> _perUser = new(StringComparer.OrdinalIgnoreCase);
     private readonly SslStreamCertificateContext? _certificateContext;
     private int _total;
@@ -183,6 +184,30 @@ public sealed class FtpServer : IAsyncDisposable
         }
     }
 
+    /// <summary>Called once when a session logs in: it no longer counts as unauthenticated.</summary>
+    internal void MarkAuthenticated(IPAddress address)
+    {
+        lock (_limitsGate)
+        {
+            Decrement(_unauthenticatedPerIp, NetUtil.Normalize(address));
+        }
+    }
+
+    private static void Decrement(Dictionary<IPAddress, int> counts, IPAddress address)
+    {
+        if (counts.TryGetValue(address, out var count))
+        {
+            if (count <= 1)
+            {
+                counts.Remove(address);
+            }
+            else
+            {
+                counts[address] = count - 1;
+            }
+        }
+    }
+
     private async Task AcceptLoopAsync(Socket listener, CancellationToken token)
     {
         while (!token.IsCancellationRequested)
@@ -244,6 +269,7 @@ public sealed class FtpServer : IAsyncDisposable
             lock (_limitsGate)
             {
                 var perIp = _perIp.GetValueOrDefault(address);
+                var unauthenticated = _unauthenticatedPerIp.GetValueOrDefault(address);
                 if (Options.MaxConnections > 0 && _total >= Options.MaxConnections)
                 {
                     rejection = "server connection limit reached";
@@ -252,10 +278,15 @@ public sealed class FtpServer : IAsyncDisposable
                 {
                     rejection = "per address connection limit reached";
                 }
+                else if (Options.MaxUnauthenticatedPerIp > 0 && unauthenticated >= Options.MaxUnauthenticatedPerIp)
+                {
+                    rejection = "per address limit of connections not logged in reached";
+                }
                 else
                 {
                     _total++;
                     _perIp[address] = perIp + 1;
+                    _unauthenticatedPerIp[address] = unauthenticated + 1;
                 }
             }
 
@@ -289,16 +320,10 @@ public sealed class FtpServer : IAsyncDisposable
             lock (_limitsGate)
             {
                 _total--;
-                if (_perIp.TryGetValue(address, out var count))
+                Decrement(_perIp, address);
+                if (session?.User is null)
                 {
-                    if (count <= 1)
-                    {
-                        _perIp.Remove(address);
-                    }
-                    else
-                    {
-                        _perIp[address] = count - 1;
-                    }
+                    Decrement(_unauthenticatedPerIp, address);
                 }
 
                 if (session?.User is { } user && _perUser.TryGetValue(user.UserName, out var userCount))

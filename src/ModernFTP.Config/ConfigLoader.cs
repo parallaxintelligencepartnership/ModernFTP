@@ -56,7 +56,7 @@ public static class ConfigLoader
             errors.Add("passivePublicAddress must be an IPv4 address.");
         }
 
-        if (config.MaxConnections < 0 || config.MaxConnectionsPerIp < 0 || config.MaxConnectionsPerUser < 0)
+        if (config.MaxConnections < 0 || config.MaxConnectionsPerIp < 0 || config.MaxConnectionsPerUser < 0 || config.MaxUnauthenticatedPerIp < 0)
         {
             errors.Add("connection limits must be 0 (unlimited) or more.");
         }
@@ -64,6 +64,11 @@ public static class ConfigLoader
         if (config.IdleTimeoutSeconds < 0 || config.IdleTimeoutSeconds > 600 * 60)
         {
             errors.Add("idleTimeoutSeconds must be between 0 and 36000.");
+        }
+
+        if (config.LoginTimeoutSeconds < 0 || config.LoginTimeoutSeconds > 3600)
+        {
+            errors.Add("loginTimeoutSeconds must be between 0 and 3600.");
         }
 
         foreach (var entry in config.BannedAddresses)
@@ -201,6 +206,8 @@ public static class ConfigLoader
             MaxConnections = config.MaxConnections,
             MaxConnectionsPerUser = config.MaxConnectionsPerUser,
             MaxConnectionsPerIp = config.MaxConnectionsPerIp,
+            MaxUnauthenticatedPerIp = config.MaxUnauthenticatedPerIp,
+            LoginTimeout = TimeSpan.FromSeconds(config.LoginTimeoutSeconds),
             IdleTimeout = TimeSpan.FromSeconds(config.IdleTimeoutSeconds),
             WelcomeMessage = config.WelcomeMessage,
             GoodbyeMessage = config.GoodbyeMessage,
