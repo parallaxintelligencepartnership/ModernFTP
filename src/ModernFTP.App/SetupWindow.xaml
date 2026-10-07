@@ -4,22 +4,22 @@
         xmlns:local="clr-namespace:ModernFTP.App"
         Title="{x:Static local:Strings.SetupTitle}"
         Width="520"
-        Height="840"
+        Height="740"
         MinHeight="420"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
     <Window.Resources>
         <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="Margin" Value="0,1" />
         </Style>
         <Style TargetType="Label" BasedOn="{StaticResource {x:Type Label}}">
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="0,3,12,3" />
+            <Setter Property="Margin" Value="0,1,12,1" />
         </Style>
         <Style TargetType="GroupBox" BasedOn="{StaticResource {x:Type GroupBox}}">
-            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Margin" Value="0,0,0,4" />
             <Setter Property="Padding" Value="8,4" />
         </Style>
     </Window.Resources>
