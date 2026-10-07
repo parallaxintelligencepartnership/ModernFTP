@@ -103,7 +103,7 @@ jobs:
           if-no-files-found: error
 
       - name: Create the GitHub release
-        if: ${{ github.ref_type == 'tag' && github.event_name == 'push' }}
+        if: ${{ github.ref_type == 'tag' && (github.event_name == 'push' || inputs.dry_run == false) }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
