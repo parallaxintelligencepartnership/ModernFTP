@@ -11,16 +11,16 @@ internal static class Program
         ModernFTP console host
 
         Usage:
-          modernftp serve [--config <path>]          Run the server until Ctrl+C
-          modernftp check-config [--config <path>]   Validate a config file and exit
-          modernftp import-typsoft --from <dir> --to <config.json> [--force]
+          modernftp-cli serve [--config <path>]          Run the server until Ctrl+C
+          modernftp-cli check-config [--config <path>]   Validate a config file and exit
+          modernftp-cli import-typsoft --from <dir> --to <config.json> [--force]
                                                      Convert a TYPSoft config.ini and users.ini to a ModernFTP config
-          modernftp service install [--config <path>] | uninstall | start | stop | status
+          modernftp-cli service install [--config <path>] | uninstall | start | stop | status
                                                      Manage the Windows service (elevated prompt)
-          modernftp firewall add [--config <path>] [--program <exe>] | remove
+          modernftp-cli firewall add [--config <path>] [--program <exe>] | remove
                                                      Add or remove the Windows Firewall rules (elevated prompt)
-          modernftp hash-password                    Read a password from stdin, print hash fields
-          modernftp --version
+          modernftp-cli hash-password                    Read a password from stdin, print hash fields
+          modernftp-cli --version
 
         Without --config the default location is used (portable folder, %AppData%\ModernFTP or ~/.config/modernftp).
         """;

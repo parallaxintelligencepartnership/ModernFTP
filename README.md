@@ -9,7 +9,7 @@ It comes in three programs that share one engine:
 | Program | What it is |
 |---|---|
 | `ModernFTP.exe` | The Windows app: tray icon, live log, sessions, setup and user windows. |
-| `modernftp.exe` | The command line host. Also installs the Windows service and adds the firewall rules. |
+| `modernftp-cli.exe` | The command line host. Also installs the Windows service and adds the firewall rules. |
 | `modernftp-service.exe` | The Windows service host, started by the Service Control Manager. |
 
 Status: version 0.1.0, first release. It is licensed for noncommercial use, see License below.
@@ -48,23 +48,23 @@ To make any other zip portable, create an empty file named `portable` next to th
 Windows Firewall blocks incoming connections until you allow them. Either:
 
 - In the app, open Setup and click "Add Windows Firewall rules" in the Application group. Windows asks for administrator approval. Save the setup first, because the rules use the saved port and passive range.
-- Or, from an elevated prompt, run `modernftp firewall add`. Add `--config <path>` to use a config other than the default, and `--program <exe>` to tie the control port rule to a different exe (the default is `modernftp-service.exe`).
+- Or, from an elevated prompt, run `modernftp-cli firewall add`. Add `--config <path>` to use a config other than the default, and `--program <exe>` to tie the control port rule to a different exe (the default is `modernftp-service.exe`).
 
-This creates two rules: "ModernFTP control" (the control port, for the exe) and "ModernFTP passive" (the passive port range). `modernftp firewall remove` deletes both.
+This creates two rules: "ModernFTP control" (the control port, for the exe) and "ModernFTP passive" (the passive port range). `modernftp-cli firewall remove` deletes both.
 
 ## Run as a Windows service
 
 From an elevated prompt, in the folder that holds the exes:
 
 ```
-modernftp service install
-modernftp service start
-modernftp service status
-modernftp service stop
-modernftp service uninstall
+modernftp-cli service install
+modernftp-cli service start
+modernftp-cli service status
+modernftp-cli service stop
+modernftp-cli service uninstall
 ```
 
-The service is called ModernFTP, starts automatically, and runs as NT AUTHORITY\NetworkService. It reads `%ProgramData%\ModernFTP\config.json`; use `modernftp service install --config <path>` for another file. Create that file before you start the service (copy one from the app, or write one by hand, see the sample below).
+The service is called ModernFTP, starts automatically, and runs as NT AUTHORITY\NetworkService. It reads `%ProgramData%\ModernFTP\config.json`; use `modernftp-cli service install --config <path>` for another file. Create that file before you start the service (copy one from the app, or write one by hand, see the sample below).
 
 Give the service account write access to the config folder, so it can write its log and its self signed certificate:
 
@@ -81,10 +81,10 @@ Do not run the app and the service on the same port at the same time.
 Point the importer at the folder that holds the old `config.ini` and `users.ini`:
 
 ```
-modernftp import-typsoft --from "C:\Program Files (x86)\TYPSoft FTP Server" --to "%AppData%\ModernFTP\config.json"
+modernftp-cli import-typsoft --from "C:\Program Files (x86)\TYPSoft FTP Server" --to "%AppData%\ModernFTP\config.json"
 ```
 
-Add `--force` to overwrite an existing config. Passwords are not migrated, because the old format cannot be trusted: every imported user must have a new password set in the Users window (or with `modernftp hash-password`) before it can log in. Anonymous access stays off by default.
+Add `--force` to overwrite an existing config. Passwords are not migrated, because the old format cannot be trusted: every imported user must have a new password set in the Users window (or with `modernftp-cli hash-password`) before it can log in. Anonymous access stays off by default.
 
 ## FTPS
 
@@ -132,7 +132,7 @@ dotnet run --project src/ModernFTP.Host.Console -- serve --config ./config.json
 |---|---|
 | `src/ModernFTP.Engine` | The FTP server itself. Cross platform. |
 | `src/ModernFTP.Config` | The config model, validation, config folder and certificate. Cross platform. |
-| `src/ModernFTP.Host.Console` | The `modernftp` command line host. |
+| `src/ModernFTP.Host.Console` | The `modernftp-cli` command line host. |
 | `src/ModernFTP.Host.Service` | The Windows service host, `modernftp-service.exe`. |
 | `src/ModernFTP.App` | The Windows app (WPF with the Fluent theme). |
 | `tests/` | Unit tests, a regression test for each known TYPSoft exploit, and curl driven conformance tests. |

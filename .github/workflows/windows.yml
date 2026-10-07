@@ -83,7 +83,7 @@ jobs:
           $log = Join-Path $root 'server.log'
           $errLog = Join-Path $root 'server.err.log'
           New-Item -ItemType Directory -Force -Path $ftpHome | Out-Null
-          $exe = Resolve-Path 'publish/console/modernftp.exe'
+          $exe = Resolve-Path 'publish/console/modernftp-cli.exe'
 
           # Throwaway credential generated per run and stored only as a PBKDF2 hash.
           $password = [guid]::NewGuid().ToString('N')

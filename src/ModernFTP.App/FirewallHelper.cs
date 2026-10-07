@@ -6,12 +6,12 @@ using ModernFTP.Config;
 
 namespace ModernFTP.App;
 
-/// <summary>Runs "modernftp firewall add" elevated (UAC prompt) and turns the outcome into a status line.</summary>
+/// <summary>Runs "modernftp-cli firewall add" elevated (UAC prompt) and turns the outcome into a status line.</summary>
 public static class FirewallHelper
 {
     private const int ErrorCancelled = 1223;
 
-    public static string ConsoleExePath() => Path.Combine(AppContext.BaseDirectory, "modernftp.exe");
+    public static string ConsoleExePath() => Path.Combine(AppContext.BaseDirectory, "modernftp-cli.exe");
 
     public static string BuildArguments(string configPath, string appExePath) =>
         $"firewall add --config \"{configPath}\" --program \"{appExePath}\"";

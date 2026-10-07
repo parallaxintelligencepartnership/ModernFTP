@@ -54,8 +54,8 @@ internal sealed class WindowsElevationCheck : IElevationCheck
 internal sealed record SystemCommand(string Group, string Action, string? ConfigPath, string? ProgramPath);
 
 /// <summary>
-/// "modernftp service install|uninstall|start|stop|status" (sc.exe) and
-/// "modernftp firewall add|remove" (netsh advfirewall).
+/// "modernftp-cli service install|uninstall|start|stop|status" (sc.exe) and
+/// "modernftp-cli firewall add|remove" (netsh advfirewall).
 /// </summary>
 internal static class SystemCommands
 {

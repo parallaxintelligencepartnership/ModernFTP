@@ -85,8 +85,8 @@ jobs:
           foreach ($dir in 'publish/fdd', 'publish/portable') {
             Get-ChildItem $dir -Filter *.pdb | Remove-Item -Force
             foreach ($doc in 'README.md', 'LICENSE.md', 'NOTICE.md', 'CHANGELOG.md') { Copy-Item $doc $dir }
-            foreach ($exe in 'ModernFTP.exe', 'modernftp.exe', 'modernftp-service.exe') {
-              if (-not (Test-Path (Join-Path $dir $exe))) { throw "$exe is missing from $dir" }
+            foreach ($exe in 'ModernFTP.exe', 'modernftp-cli.exe', 'modernftp-service.exe') {
+              if ($exe -cnotin (Get-ChildItem $dir -File | ForEach-Object Name)) { throw "$exe is missing from $dir" }
             }
           }
           New-Item -ItemType File -Path publish/portable/portable | Out-Null

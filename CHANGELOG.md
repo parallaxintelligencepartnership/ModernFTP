@@ -8,7 +8,7 @@
 - Windows app (WPF, Fluent theme): tray icon, live log, session list, setup and user windows, start with Windows, light and dark themes.
 - Console host: `serve`, `check-config`, `hash-password`, `import-typsoft`.
 - Importer for TYPSoft FTP Server `config.ini` and `users.ini` (passwords must be set again).
-- Windows service host (`modernftp-service.exe`) with `modernftp service install`, `uninstall`, `start`, `stop` and `status`.
-- Windows Firewall rules from the app (Setup window button) or `modernftp firewall add` and `remove`.
+- Windows service host (`modernftp-service.exe`) with `modernftp-cli service install`, `uninstall`, `start`, `stop` and `status`.
+- Windows Firewall rules from the app (Setup window button) or `modernftp-cli firewall add` and `remove`.
 - About window "Check for updates" button, which only contacts GitHub when clicked.
 - Two zip downloads: framework dependent and portable (self contained). No installer, not code signed.

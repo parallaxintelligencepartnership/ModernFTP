@@ -64,7 +64,7 @@ public sealed class UserConfig
 {
     public string Username { get; set; } = string.Empty;
 
-    /// <summary>Base64 PBKDF2 SHA256 hash. Create with "modernftp hash-password".</summary>
+    /// <summary>Base64 PBKDF2 SHA256 hash. Create with "modernftp-cli hash-password".</summary>
     public string? PasswordHash { get; set; }
 
     public string? PasswordSalt { get; set; }

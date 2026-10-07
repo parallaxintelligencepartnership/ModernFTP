@@ -7,7 +7,7 @@ ModernFTP is a clean room rewrite of TYPSoft FTP Server 1.10 (Delphi, 2003) for 
 - C# on .NET 10 LTS, SDK pinned in `global.json` (10.0.401, rollForward latestFeature).
 - `src/ModernFTP.Engine`: hand written FTP engine (RFC 959, 2228, 2389, 3659, 4217). No third party FTP library.
 - `src/ModernFTP.Config`: JSON config, config folder (`%AppData%\ModernFTP`, `~/.config/modernftp`, or portable beside the exe), certificate.
-- `src/ModernFTP.Host.Console`: cross platform console host (`modernftp serve`, `check-config`, `hash-password`).
+- `src/ModernFTP.Host.Console`: cross platform console host (`modernftp-cli serve`, `check-config`, `hash-password`).
 - `src/ModernFTP.Host.Service`: Windows service host (`modernftp-service.exe`), config in `%ProgramData%\ModernFTP`.
 - `src/ModernFTP.App`: WPF shell with the built in Fluent theme (`ThemeMode="System"`), Windows only, `EnableWindowsTargeting` so it compiles everywhere.
 - License: PolyForm Noncommercial 1.0.0. Copyright holder is always written in full: "Parallax Intelligence Partnership, LLC".
