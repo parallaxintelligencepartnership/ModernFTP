@@ -123,6 +123,9 @@ public static class CaptureRunner
                     Username = "alice",
                     PasswordHash = "AAAA",
                     DownloadRateKBps = 512,
+                    MaxConnections = 3,
+                    MaxConnectionsPerIp = 2,
+                    IdleTimeoutSeconds = 600,
                     Directories =
                     [
                         new DirectoryConfig
@@ -174,10 +177,51 @@ public static class CaptureRunner
             main.OnServerEvent(e);
         }
 
-        var first = new SessionRow(1, "203.0.113.24") { User = "alice" };
-        first.SetIdleText("00:00:41");
-        var second = new SessionRow(2, "198.51.100.7") { User = "bob", Transfer = "site-backup.zip", Progress = 42, TimeLeft = "00:01:12" };
-        second.SetIdleText("00:00:03");
-        main.SetSampleState([first, second], sent: 19_300_000, received: 6_500_000, running: true);
+        // The Users page gets sample SessionInfo records through the same refresh as live data. Two snapshots
+        // four seconds apart give the download a transfer rate, hence a time left.
+        var now = DateTimeOffset.Now;
+        IReadOnlyList<SessionInfo> Snapshot(DateTimeOffset at, long downloaded) =>
+        [
+            new SessionInfo
+            {
+                Id = 1,
+                User = "alice",
+                RemoteAddress = alice.Address,
+                ConnectedAt = now.AddMinutes(-9),
+                LastActivity = at,
+                BytesSent = 2_457_600 + downloaded,
+                BytesReceived = 0,
+                CurrentTransfer = new TransferInfo
+                {
+                    Path = "/projects/reports/q4-forecast.pdf",
+                    Direction = TransferDirection.Download,
+                    BytesDone = downloaded,
+                    TotalBytes = 80_000_000,
+                    StartedAt = now.AddSeconds(-30),
+                },
+            },
+            new SessionInfo
+            {
+                Id = 2,
+                User = "bob",
+                RemoteAddress = bob.Address,
+                ConnectedAt = now.AddMinutes(-4),
+                LastActivity = at.AddSeconds(-3),
+                BytesSent = 0,
+                BytesReceived = 6_500_000,
+                CurrentTransfer = new TransferInfo
+                {
+                    Path = "/uploads/site-backup.zip",
+                    Direction = TransferDirection.Upload,
+                    BytesDone = 6_500_000,
+                    StartedAt = now.AddSeconds(-20),
+                },
+            },
+        ];
+        main.LoadSnapshots(
+            [(now.AddSeconds(-4), Snapshot(now.AddSeconds(-4), 31_000_000)), (now, Snapshot(now, 33_600_000))],
+            sent: 19_300_000,
+            received: 6_500_000,
+            running: true);
     }
 }
