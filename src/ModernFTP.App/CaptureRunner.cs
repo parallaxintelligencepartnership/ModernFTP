@@ -49,6 +49,25 @@ public static class CaptureRunner
             about.Hide();
         }
 
+        // Shots 9 to 14: user setup (two tabs) and IP restriction, light then dark.
+        foreach (var (mode, label) in new[] { (ThemeMode.Light, "light"), (ThemeMode.Dark, "dark") })
+        {
+            var sample = SampleConfig();
+            var userSetup = new UserSetupWindow(sample, configPath: null);
+            ThemeHelper.Apply(userSetup, mode);
+            userSetup.Show();
+            await Save(userSetup, directory, sheet, ++number, "user-setup-main", label, Strings.CaptureUserMainDescription);
+            userSetup.ShowDirectoryTab();
+            await Save(userSetup, directory, sheet, ++number, "user-setup-directory", label, Strings.CaptureUserDirectoryDescription);
+            userSetup.Hide();
+
+            var ip = new IpRestrictionWindow(sample, configPath: null);
+            ThemeHelper.Apply(ip, mode);
+            ip.Show();
+            await Save(ip, directory, sheet, ++number, "ip-restriction", label, Strings.CaptureIpDescription);
+            ip.Hide();
+        }
+
         await File.WriteAllTextAsync(Path.Combine(directory, "contact-sheet.md"), sheet.ToString());
     }
 
@@ -90,6 +109,44 @@ public static class CaptureRunner
         }
 
         sheet.Append("- ").Append(file).Append(": ").Append(description).Append(" Theme: ").Append(theme).Append(".\n");
+    }
+
+    private static ModernFtpConfig SampleConfig()
+    {
+        const string home = @"C:\FTP\alice";
+        return new ModernFtpConfig
+        {
+            Users =
+            [
+                new UserConfig
+                {
+                    Username = "alice",
+                    PasswordHash = "AAAA",
+                    DownloadRateKBps = 512,
+                    Directories =
+                    [
+                        new DirectoryConfig
+                        {
+                            Path = home,
+                            Permissions = new PermissionsConfig { Download = true, Upload = true, Delete = true, MakeDir = true, RemoveDir = true, Rename = true, List = true },
+                        },
+                        new DirectoryConfig { Path = home + @"\reports", Alias = "reports", IncludeSubdirectories = false },
+                    ],
+                },
+                new UserConfig
+                {
+                    Username = "bob",
+                    PasswordHash = "AAAA",
+                    Enabled = false,
+                    Directories =
+                    [
+                        new DirectoryConfig { Path = home + @"\uploads", Permissions = new PermissionsConfig { Upload = true, MakeDir = true } },
+                        new DirectoryConfig { Path = home + @"\public", Alias = "public" },
+                    ],
+                },
+            ],
+            BannedAddresses = ["203.0.113.99", "198.51.100.0/24", "2001:db8::/32"],
+        };
     }
 
     private static void LoadSample(MainWindow main)

@@ -62,7 +62,7 @@ jobs:
           }
           if ($proc.ExitCode -ne 0) { throw "UI capture failed with exit code $($proc.ExitCode)." }
           $pngs = @(Get-ChildItem $dir -Filter '*.png')
-          if ($pngs.Count -ne 8) { throw "Expected 8 screenshots, found $($pngs.Count)." }
+          if ($pngs.Count -ne 14) { throw "Expected 14 screenshots, found $($pngs.Count)." }
           if (-not (Test-Path (Join-Path $dir 'contact-sheet.md'))) { throw 'contact-sheet.md is missing.' }
 
       - name: Upload UI capture
