@@ -105,6 +105,24 @@ public sealed class UserSetupViewModel
         return null;
     }
 
+    /// <summary>Empty text means "use the global value" (null). Otherwise a whole number of 0 or more.</summary>
+    public static bool TryParseLimit(string? text, out int? value)
+    {
+        value = null;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return true;
+        }
+
+        if (int.TryParse(text.Trim(), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number))
+        {
+            value = number;
+            return true;
+        }
+
+        return false;
+    }
+
     public static bool HasPassword(UserConfig user) =>
         !string.IsNullOrEmpty(user.PasswordHash) || !string.IsNullOrEmpty(user.Password);
 

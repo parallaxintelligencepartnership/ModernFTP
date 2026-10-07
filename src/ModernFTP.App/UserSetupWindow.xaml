@@ -65,12 +65,12 @@
                         <Button x:Name="SetPasswordButton" Grid.Row="1" Grid.Column="2" Content="{x:Static local:Strings.UserSetPassword}" Margin="8,0,0,0" HorizontalAlignment="Left" Click="OnSetPassword" />
                         <TextBlock x:Name="PasswordStatus" Grid.Row="2" Grid.ColumnSpan="3" Opacity="0.7" Margin="0,0,0,14" TextWrapping="Wrap" />
                         <Label Grid.Row="3" Content="{x:Static local:Strings.UserMaxConnections}" Target="{Binding ElementName=UserMaxConnBox}" />
-                        <TextBox x:Name="UserMaxConnBox" Grid.Row="3" Grid.Column="1" IsEnabled="False" />
+                        <TextBox x:Name="UserMaxConnBox" Grid.Row="3" Grid.Column="1" TextChanged="OnLimitChanged" />
                         <Label Grid.Row="4" Content="{x:Static local:Strings.UserMaxPerIp}" Target="{Binding ElementName=UserMaxIpBox}" />
-                        <TextBox x:Name="UserMaxIpBox" Grid.Row="4" Grid.Column="1" IsEnabled="False" />
+                        <TextBox x:Name="UserMaxIpBox" Grid.Row="4" Grid.Column="1" TextChanged="OnLimitChanged" />
                         <Label Grid.Row="5" Content="{x:Static local:Strings.UserIdleTimeout}" Target="{Binding ElementName=UserIdleBox}" />
-                        <TextBox x:Name="UserIdleBox" Grid.Row="5" Grid.Column="1" IsEnabled="False" />
-                        <TextBlock Grid.Row="3" Grid.RowSpan="3" Grid.Column="2" Text="{x:Static local:Strings.UserLimitsComing}" Opacity="0.7" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" />
+                        <TextBox x:Name="UserIdleBox" Grid.Row="5" Grid.Column="1" TextChanged="OnLimitChanged" />
+                        <TextBlock Grid.Row="3" Grid.RowSpan="3" Grid.Column="2" Text="{x:Static local:Strings.UserLimitsHint}" Opacity="0.7" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" />
                         <Label Grid.Row="6" Content="{x:Static local:Strings.UserDownloadSpeed}" Target="{Binding ElementName=SpeedBox}" Margin="0,14,12,3" />
                         <TextBox x:Name="SpeedBox" Grid.Row="6" Grid.Column="1" Margin="0,14,0,3" TextChanged="OnSpeedChanged" />
                         <TextBlock Grid.Row="6" Grid.Column="2" Text="{x:Static local:Strings.UserDownloadSpeedHint}" Opacity="0.7" VerticalAlignment="Center" Margin="12,14,0,0" />

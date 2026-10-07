@@ -14,6 +14,7 @@ public partial class UserSetupWindow : Window
     private UserConfig? _user;
     private bool _loading;
     private bool _speedInvalid;
+    private readonly HashSet<TextBox> _invalidLimits = [];
 
     /// <param name="configPath">Where Save writes the config. Null disables writing (capture mode).</param>
     public UserSetupWindow(ModernFtpConfig config, string? configPath)
@@ -61,6 +62,10 @@ public partial class UserSetupWindow : Window
         PasswordStatus.Text = user is null ? string.Empty
             : UserSetupViewModel.HasPassword(user) ? Strings.UserPasswordSet : Strings.UserPasswordNone;
         SpeedBox.Text = (user?.DownloadRateKBps ?? 0).ToString(CultureInfo.InvariantCulture);
+        UserMaxConnBox.Text = user?.MaxConnections?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        UserMaxIpBox.Text = user?.MaxConnectionsPerIp?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        UserIdleBox.Text = user?.IdleTimeoutSeconds?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        _invalidLimits.Clear();
         _speedInvalid = false;
         _loading = false;
         ErrorText.Text = string.Empty;
@@ -108,6 +113,38 @@ public partial class UserSetupWindow : Window
         {
             _speedInvalid = true;
             ErrorText.Text = string.Format(CultureInfo.CurrentCulture, Strings.UserNumberFormat, Strings.UserDownloadSpeed);
+        }
+    }
+
+    private void OnLimitChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_loading || _user is null)
+        {
+            return;
+        }
+
+        var box = (TextBox)sender;
+        var label = box == UserMaxConnBox ? Strings.UserMaxConnections : box == UserMaxIpBox ? Strings.UserMaxPerIp : Strings.UserIdleTimeout;
+        if (!UserSetupViewModel.TryParseLimit(box.Text, out var value))
+        {
+            _invalidLimits.Add(box);
+            ErrorText.Text = string.Format(CultureInfo.CurrentCulture, Strings.UserNumberFormat, label);
+            return;
+        }
+
+        _invalidLimits.Remove(box);
+        ErrorText.Text = string.Empty;
+        if (box == UserMaxConnBox)
+        {
+            _user.MaxConnections = value;
+        }
+        else if (box == UserMaxIpBox)
+        {
+            _user.MaxConnectionsPerIp = value;
+        }
+        else
+        {
+            _user.IdleTimeoutSeconds = value;
         }
     }
 
@@ -302,6 +339,12 @@ public partial class UserSetupWindow : Window
         if (_speedInvalid)
         {
             SpeedBox.Focus();
+            return;
+        }
+
+        if (_invalidLimits.FirstOrDefault() is { } invalid)
+        {
+            invalid.Focus();
             return;
         }
 
