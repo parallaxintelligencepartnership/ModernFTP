@@ -56,7 +56,7 @@
                              IsReadOnlyCaretVisible="True"
                              VerticalScrollBarVisibility="Auto"
                              HorizontalScrollBarVisibility="Auto"
-                             FontFamily="Cascadia Mono, Consolas"
+                             FontFamily="Cascadia Mono, Consolas, Courier New"
                              FontSize="12"
                              Margin="0,6,0,0">
                     <RichTextBox.Document>

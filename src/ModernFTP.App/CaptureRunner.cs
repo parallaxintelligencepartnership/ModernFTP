@@ -58,21 +58,16 @@ public static class CaptureRunner
         await Task.Delay(400);
         window.UpdateLayout();
 
-        var root = (FrameworkElement)window.Content;
+        // The first visual child of a Window is its themed chrome (background plus content), client area only.
+        var root = VisualTreeHelper.GetChildrenCount(window) > 0 && VisualTreeHelper.GetChild(window, 0) is FrameworkElement chrome
+            ? chrome
+            : (FrameworkElement)window.Content;
         var dpi = VisualTreeHelper.GetDpi(window);
         var width = (int)Math.Ceiling(root.ActualWidth * dpi.DpiScaleX);
         var height = (int)Math.Ceiling(root.ActualHeight * dpi.DpiScaleY);
-        var bounds = new Rect(0, 0, root.ActualWidth, root.ActualHeight);
-
-        var surface = new DrawingVisual();
-        using (var dc = surface.RenderOpen())
-        {
-            dc.DrawRectangle(window.Background, null, bounds);
-            dc.DrawRectangle(new VisualBrush(root) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top }, null, bounds);
-        }
 
         var bitmap = new RenderTargetBitmap(width, height, 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
-        bitmap.Render(surface);
+        bitmap.Render(root);
 
         var file = string.Create(CultureInfo.InvariantCulture, $"{number:00}-{name}-{theme}.png");
         var encoder = new PngBitmapEncoder();
