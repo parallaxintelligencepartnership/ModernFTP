@@ -7,12 +7,18 @@ internal sealed class IniFile
 
     public IReadOnlyList<IniSection> Sections => _sections;
 
+    /// <summary>True when the file was not UTF-8 and was read as code page 1252.</summary>
+    public bool DecodedAsAnsi { get; private set; }
+
     public static IniFile Parse(string path)
     {
         var file = new IniFile();
         IniSection? current = null;
         var number = 0;
-        foreach (var raw in File.ReadLines(path))
+        var (text, ansi) = LegacyText.Read(path);
+        file.DecodedAsAnsi = ansi;
+        using var reader = new StringReader(text);
+        while (reader.ReadLine() is { } raw)
         {
             number++;
             var line = raw.Trim().TrimStart('﻿');

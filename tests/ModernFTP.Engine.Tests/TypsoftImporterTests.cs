@@ -25,6 +25,44 @@ public class TypsoftImporterTests : IDisposable
     }
 
     [Fact]
+    public void AnsiFilesFromTheOriginalAreReadAsCodePage1252WithAWarning()
+    {
+        // The original is a Delphi program that wrote its INI and message files in the Windows ANSI code page.
+        var source = Path.Combine(_work, "ansi");
+        Directory.CreateDirectory(source);
+        var ansi = System.Text.Encoding.Latin1;
+        File.WriteAllBytes(Path.Combine(source, "config.ini"), ansi.GetBytes("; Serveur de l\u0027\u00e9quipe\r\n[Setup]\r\nPort=21\r\nEnterMessage=welcome.txt\r\n"));
+        File.WriteAllBytes(Path.Combine(source, "welcome.txt"), ansi.GetBytes("Bienvenue \u00e0 tous, d\u00e9j\u00e0 pr\u00eat."));
+        File.WriteAllBytes(
+            Path.Combine(source, "users.ini"),
+            ansi.GetBytes("[Andr\u00e9]\r\nHomePath=C:\\Donn\u00e9es\\\r\nDir0=C:\\Donn\u00e9es\\|DU_______S_|\r\n"));
+
+        var result = TypsoftImporter.Import(source);
+
+        var user = Assert.Single(result.Config.Users);
+        Assert.Equal("Andr\u00e9", user.Username);
+        Assert.Equal("C:\\Donn\u00e9es\\", user.EffectiveHome().Path);
+        Assert.Equal("Bienvenue \u00e0 tous, d\u00e9j\u00e0 pr\u00eat.", result.Config.WelcomeMessage);
+        Assert.Contains(result.Warnings, w => w.StartsWith("users.ini is not UTF-8", StringComparison.Ordinal));
+        Assert.Contains(result.Warnings, w => w.StartsWith("config.ini is not UTF-8", StringComparison.Ordinal));
+        Assert.Contains(result.Warnings, w => w.StartsWith("welcome.txt is not UTF-8", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Utf8FilesAreReadAsUtf8WithoutAnEncodingWarning()
+    {
+        var source = Path.Combine(_work, "utf8");
+        Directory.CreateDirectory(source);
+        File.WriteAllText(Path.Combine(source, "config.ini"), "[Setup]\r\nPort=21\r\n");
+        File.WriteAllText(Path.Combine(source, "users.ini"), "[Andr\u00e9]\r\nHomePath=C:\\Donn\u00e9es\\\r\nDir0=C:\\Donn\u00e9es\\|DU_______S_|\r\n");
+
+        var result = TypsoftImporter.Import(source);
+
+        Assert.Equal("Andr\u00e9", Assert.Single(result.Config.Users).Username);
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("UTF-8", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void GlobalSettingsAreMapped()
     {
         var result = TypsoftImporter.Import(Source());

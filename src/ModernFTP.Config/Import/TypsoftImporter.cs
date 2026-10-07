@@ -35,6 +35,13 @@ public static class TypsoftImporter
         var usersIni = IniFile.Parse(usersPath);
         var warnings = new List<string>();
         var config = new ModernFtpConfig();
+        foreach (var (ini, path) in new[] { (configIni, configPath), (usersIni, usersPath) })
+        {
+            if (ini.DecodedAsAnsi)
+            {
+                warnings.Add(LegacyText.AnsiWarning(path));
+            }
+        }
 
         ImportSettings(configIni, configPath, sourceDirectory, config, warnings);
         ImportUsers(usersIni, usersPath, config, warnings);
@@ -164,7 +171,13 @@ public static class TypsoftImporter
         try
         {
             var file = entry.Value.Replace('\\', Path.DirectorySeparatorChar);
-            text = File.ReadAllText(Path.GetFullPath(file, sourceDirectory)).Trim();
+            var full = Path.GetFullPath(file, sourceDirectory);
+            (text, var ansi) = LegacyText.Read(full);
+            text = text.Trim();
+            if (ansi)
+            {
+                warnings.Add(LegacyText.AnsiWarning(full));
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
