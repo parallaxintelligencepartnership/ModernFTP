@@ -15,7 +15,7 @@
         <TextBlock Text="{x:Static local:Strings.AboutInspired}" Margin="0,2" TextWrapping="Wrap" />
         <TextBlock x:Name="LicenseText" Margin="0,2" TextWrapping="Wrap" />
         <TextBlock Margin="0,10,0,0">
-            <Hyperlink x:Name="RepoLink" NavigateUri="{x:Static local:Strings.AboutRepoUrl}" RequestNavigate="OnNavigate">
+            <Hyperlink x:Name="RepoLink" RequestNavigate="OnNavigate">
                 <Run Text="{x:Static local:Strings.AboutRepoText}" />
             </Hyperlink>
         </TextBlock>

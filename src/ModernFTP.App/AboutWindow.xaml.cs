@@ -11,6 +11,7 @@ public partial class AboutWindow : Window
     public AboutWindow()
     {
         InitializeComponent();
+        RepoLink.NavigateUri = new Uri(Strings.AboutRepoUrl);
         VersionText.Text = string.Format(CultureInfo.CurrentCulture, Strings.AboutVersionFormat, AppVersion());
         LicenseText.Text = string.Format(CultureInfo.CurrentCulture, Strings.AboutLicenseFormat, Strings.AboutLicenseName);
     }
