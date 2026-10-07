@@ -22,6 +22,11 @@ public partial class App : Application
         {
             window.Show();
         }
+
+        if (window.StartServerOnLaunch)
+        {
+            await window.StartServerOnLaunchAsync();
+        }
     }
 
     private async Task RunCaptureAsync(string? directory)

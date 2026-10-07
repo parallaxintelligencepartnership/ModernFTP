@@ -30,6 +30,7 @@ public sealed class SetupViewModel
         HideServerName = config.HideServerName;
         StartMinimizedToTray = settings.StartMinimizedToTray;
         StartWithWindows = settings.StartWithWindows;
+        StartServerOnLaunch = settings.StartServerOnLaunch || settings.StartWithWindows;
     }
 
     public string ListenAddress { get; set; }
@@ -57,6 +58,9 @@ public sealed class SetupViewModel
     public bool StartMinimizedToTray { get; set; }
 
     public bool StartWithWindows { get; set; }
+
+    /// <summary>Forced on at save when <see cref="StartWithWindows"/> is on: starting with Windows means serving.</summary>
+    public bool StartServerOnLaunch { get; set; }
 
     /// <summary>The config object that Save writes; the same instance that was passed in.</summary>
     public ModernFtpConfig Config => _config;
@@ -110,6 +114,7 @@ public sealed class SetupViewModel
         ConfigLoader.Save(_config, configPath);
         _settings.StartMinimizedToTray = StartMinimizedToTray;
         _settings.StartWithWindows = StartWithWindows;
+        _settings.StartServerOnLaunch = StartServerOnLaunch || StartWithWindows;
         return null;
     }
 

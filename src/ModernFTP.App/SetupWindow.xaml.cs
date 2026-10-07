@@ -31,6 +31,25 @@ public partial class SetupWindow : Window
         HideNameBox.IsChecked = _model.HideServerName;
         StartMinBox.IsChecked = _model.StartMinimizedToTray;
         StartWinBox.IsChecked = _model.StartWithWindows;
+        StartServerBox.IsChecked = _model.StartServerOnLaunch;
+        OnStartWithWindowsChanged(this, new RoutedEventArgs());
+    }
+
+    /// <summary>Start with Windows implies starting the server, so that box is ticked and locked while it is on.</summary>
+    private void OnStartWithWindowsChanged(object sender, RoutedEventArgs e)
+    {
+        if (StartServerBox is null)
+        {
+            return;
+        }
+
+        var withWindows = StartWinBox.IsChecked == true;
+        if (withWindows)
+        {
+            StartServerBox.IsChecked = true;
+        }
+
+        StartServerBox.IsEnabled = !withWindows;
     }
 
     private void OnSave(object sender, RoutedEventArgs e)
@@ -49,6 +68,7 @@ public partial class SetupWindow : Window
         _model.HideServerName = HideNameBox.IsChecked == true;
         _model.StartMinimizedToTray = StartMinBox.IsChecked == true;
         _model.StartWithWindows = StartWinBox.IsChecked == true;
+        _model.StartServerOnLaunch = StartServerBox.IsChecked == true;
 
         if (_configPath is null)
         {

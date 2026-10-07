@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:ModernFTP.App"
         Title="{x:Static local:Strings.SetupTitle}"
         Width="520"
-        Height="800"
+        Height="826"
         MinHeight="420"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
@@ -93,7 +93,8 @@
             <GroupBox Header="{x:Static local:Strings.SetupGroupApp}">
                 <StackPanel>
                     <CheckBox x:Name="StartMinBox" Content="{x:Static local:Strings.SetupStartMinimized}" Margin="0,2" />
-                    <CheckBox x:Name="StartWinBox" Content="{x:Static local:Strings.SetupStartWithWindows}" Margin="0,2" />
+                    <CheckBox x:Name="StartWinBox" Content="{x:Static local:Strings.SetupStartWithWindows}" Margin="0,2" Checked="OnStartWithWindowsChanged" Unchecked="OnStartWithWindowsChanged" />
+                    <CheckBox x:Name="StartServerBox" Content="{x:Static local:Strings.SetupStartServerOnLaunch}" Margin="0,2" />
                 </StackPanel>
             </GroupBox>
         </StackPanel>

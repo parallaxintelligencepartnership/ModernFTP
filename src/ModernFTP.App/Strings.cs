@@ -76,6 +76,7 @@ public static class Strings
     public const string SetupHideServerName = "Hide the server name in the banner";
     public const string SetupStartMinimized = "Start minimized to tray";
     public const string SetupStartWithWindows = "Start with Windows";
+    public const string SetupStartServerOnLaunch = "Start the server when ModernFTP opens";
     public const string SetupRestartNote = "Changes to network settings apply the next time the server starts.";
     public const string SetupSave = "_Save";
     public const string SetupClose = "_Close";

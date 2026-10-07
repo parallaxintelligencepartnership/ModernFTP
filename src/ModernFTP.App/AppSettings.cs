@@ -13,6 +13,9 @@ public sealed class AppSettings
 
     public bool StartWithWindows { get; set; }
 
+    /// <summary>Start the FTP server as soon as the app opens. Always on when <see cref="StartWithWindows"/> is.</summary>
+    public bool StartServerOnLaunch { get; set; } = true;
+
     public static string DefaultPath() => Path.Combine(ConfigPaths.ResolveConfigDirectory(), FileName);
 
     public static AppSettings Load(string? path = null)

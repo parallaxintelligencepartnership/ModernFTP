@@ -82,22 +82,54 @@ public partial class MainWindow : Window
 
     public bool IsServerRunning => _host.IsRunning;
 
+    /// <summary>True when the app settings ask for the server to start as soon as the app opens.</summary>
+    public bool StartServerOnLaunch => _tray is not null && _settings.StartServerOnLaunch;
+
+    /// <summary>
+    /// Starts the server when the app opens. A failure is logged and, while the window is hidden in the tray,
+    /// reported with a tray notification instead of a dialog nobody would see.
+    /// </summary>
+    public async Task StartServerOnLaunchAsync()
+    {
+        if (IsVisible)
+        {
+            await StartServerAsync();
+            return;
+        }
+
+        var error = await TryStartServerAsync();
+        if (error is not null)
+        {
+            _tray?.ShowWarning(Strings.StartFailedTitle, error);
+        }
+    }
+
     public async Task StartServerAsync()
+    {
+        var error = await TryStartServerAsync();
+        if (error is not null)
+        {
+            MessageBox.Show(this, error, Strings.StartFailedTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>Starts the server and logs the outcome. Returns the error message, or null on success.</summary>
+    private async Task<string?> TryStartServerAsync()
     {
         if (_host.IsRunning)
         {
-            return;
+            return null;
         }
 
         var error = await _host.StartAsync();
         if (error is not null)
         {
             AppendLine([new LogSegment(Strings.StartFailedTitle + ": " + error, LogTag.Text)]);
-            MessageBox.Show(this, error, Strings.StartFailedTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            return error;
         }
 
         AppendLine([new LogSegment(string.Format(CultureInfo.CurrentCulture, Strings.ServerStartedFormat, _host.ListeningOn), LogTag.Text)]);
+        return null;
     }
 
     public async Task StopServerAsync()

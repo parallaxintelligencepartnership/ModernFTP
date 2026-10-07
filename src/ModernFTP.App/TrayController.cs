@@ -47,6 +47,10 @@ public sealed class TrayController : IDisposable
         _icon.DoubleClick += (_, _) => show();
     }
 
+    /// <summary>Shows a warning notification from the tray icon, for errors while the window is hidden.</summary>
+    public void ShowWarning(string title, string text) =>
+        _icon.ShowBalloonTip(10_000, title, text, Forms.ToolTipIcon.Warning);
+
     public void Dispose()
     {
         _icon.Visible = false;

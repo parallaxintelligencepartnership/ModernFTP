@@ -42,6 +42,31 @@ public class SetupViewModelTests
     }
 
     [Fact]
+    public void StartWithWindowsAlsoStartsTheServerWhenTheAppOpens()
+    {
+        Assert.True(new AppSettings().StartServerOnLaunch);
+
+        var dir = Directory.CreateTempSubdirectory("modernftp-app-tests-").FullName;
+        try
+        {
+            var path = Path.Combine(dir, "config.json");
+            var settings = new AppSettings { StartServerOnLaunch = false };
+            var model = new SetupViewModel(new ModernFtpConfig(), settings) { StartWithWindows = true, StartServerOnLaunch = false };
+            Assert.Null(model.Save(path));
+            Assert.True(settings.StartWithWindows);
+            Assert.True(settings.StartServerOnLaunch);
+
+            model = new SetupViewModel(new ModernFtpConfig(), settings) { StartWithWindows = false, StartServerOnLaunch = false };
+            Assert.Null(model.Save(path));
+            Assert.False(settings.StartServerOnLaunch);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
     public void ApplyReportsANonNumericField()
     {
         var model = new SetupViewModel(new ModernFtpConfig(), new AppSettings()) { Port = "abc" };
